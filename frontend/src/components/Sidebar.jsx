@@ -28,18 +28,20 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/tournaments', label: 'Tournaments', icon: Calendar, roles: ['super_admin', 'admin', 'viewer'] },
+    { path: '/participant-dashboard', label: 'My Dashboard', icon: LayoutDashboard, roles: ['participant'] },
+    { path: '/visitor-dashboard', label: 'My Dashboard', icon: LayoutDashboard, roles: ['visitor'] },
+    { path: '/tournaments', label: 'Tournaments', icon: Calendar, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
     { path: '/participants', label: 'Participants', icon: Users, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/teams', label: 'Teams', icon: UsersRound, roles: ['super_admin', 'admin', 'viewer'] },
+    { path: '/teams', label: 'Teams', icon: UsersRound, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
     { path: '/attendance', label: 'Attendance', icon: ClipboardCheck, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/leaderboard', label: 'Leaderboard', icon: Trophy, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/rules', label: 'Rules & Regulations', icon: BookOpen, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/announcements', label: 'Announcements', icon: Bell, roles: ['super_admin', 'admin', 'viewer'] },
+    { path: '/leaderboard', label: 'Leaderboard', icon: Trophy, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
+    { path: '/rules', label: 'Rules & Regulations', icon: BookOpen, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
+    { path: '/announcements', label: 'Announcements', icon: Bell, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
     { path: '/reports', label: 'Reports', icon: FileText, roles: ['super_admin', 'admin', 'viewer'] },
     { path: '/committee', label: 'Committee Members', icon: Shield, roles: ['super_admin'] },
     { path: '/audit-logs', label: 'Audit Logs', icon: FileText, roles: ['super_admin'] },
     { path: '/settings', label: 'Settings', icon: Settings, roles: ['super_admin', 'admin'] },
-    { path: '/profile', label: 'Profile', icon: User, roles: ['super_admin', 'admin', 'viewer'] },
+    { path: '/profile', label: 'Profile', icon: User, roles: ['super_admin', 'admin', 'viewer', 'participant', 'visitor'] },
   ];
 
   const filteredItems = navItems.filter(item => item.roles.includes(user?.role));

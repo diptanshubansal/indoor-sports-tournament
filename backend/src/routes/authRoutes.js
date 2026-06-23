@@ -57,6 +57,7 @@ router.post('/login', async (req, res) => {
         email: user.email,
         role: user.role,
         status: user.status,
+        isTempPassword: user.isTempPassword || false,
       },
     });
   } catch (error) {
@@ -146,6 +147,42 @@ router.post('/reset-password', async (req, res) => {
     });
 
     res.json({ success: true, message: 'Password has been reset successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+// @route   POST /api/auth/change-password
+// @desc    Change password (clears isTempPassword flag)
+// @access  Private
+router.post('/change-password', protect, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ success: false, message: 'Please provide current and new passwords' });
+  }
+
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Incorrect current password' });
+    }
+
+    user.password = newPassword;
+    user.isTempPassword = false;
+    await user.save();
+
+    await logAudit({
+      userId: user._id,
+      action: 'update',
+      details: `Password changed by user ${user.userId}`,
+      req,
+    });
+
+    res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

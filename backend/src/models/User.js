@@ -17,8 +17,8 @@ const userSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true,
       trim: true,
       lowercase: true,
     },
@@ -32,8 +32,12 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['super_admin', 'admin', 'viewer'],
+      enum: ['super_admin', 'admin', 'viewer', 'participant', 'visitor'],
       default: 'viewer',
+    },
+    isTempPassword: {
+      type: Boolean,
+      default: false,
     },
     status: {
       type: String,

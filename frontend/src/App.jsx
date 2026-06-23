@@ -23,9 +23,12 @@ import Committee from './pages/Committee';
 import AuditLogs from './pages/AuditLogs';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
+import ParticipantDashboard from './pages/ParticipantDashboard';
+import VisitorDashboard from './pages/VisitorDashboard';
+import ChangePassword from './pages/ChangePassword';
 
 function App() {
-  const commonRoles = ['super_admin', 'admin', 'viewer'];
+  const commonRoles = ['super_admin', 'admin', 'viewer', 'visitor'];
   const writeRoles = ['super_admin', 'admin'];
 
   return (
@@ -165,11 +168,47 @@ function App() {
                 }
               />
 
+              {/* Participant Dashboard */}
+              <Route
+                path="/participant-dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['participant']}>
+                    <ProtectedPage>
+                      <ParticipantDashboard />
+                    </ProtectedPage>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Visitor Dashboard */}
+              <Route
+                path="/visitor-dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['visitor']}>
+                    <ProtectedPage>
+                      <VisitorDashboard />
+                    </ProtectedPage>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Change Password */}
+              <Route
+                path="/change-password"
+                element={
+                  <ProtectedRoute allowedRoles={['participant']}>
+                    <ProtectedPage>
+                      <ChangePassword />
+                    </ProtectedPage>
+                  </ProtectedRoute>
+                }
+              />
+
               {/* General Profile */}
               <Route
                 path="/profile"
                 element={
-                  <ProtectedRoute allowedRoles={commonRoles}>
+                  <ProtectedRoute allowedRoles={['super_admin', 'admin', 'viewer', 'participant', 'visitor']}>
                     <ProtectedPage>
                       <Profile />
                     </ProtectedPage>

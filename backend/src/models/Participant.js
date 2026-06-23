@@ -20,19 +20,26 @@ const participantSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: true,
       trim: true,
       lowercase: true,
     },
     gender: {
       type: String,
-      enum: ['male', 'female', 'other'],
-      required: true,
+      enum: ['male', 'female', 'other', 'Not Specified'],
+      default: 'Not Specified',
     },
     collegeOrInstitute: {
       type: String,
-      required: true,
       trim: true,
+      default: 'Not Specified',
+    },
+    games: {
+      type: [String],
+      default: [],
+    },
+    temporaryPassword: {
+      type: String,
+      default: '',
     },
     teamName: {
       type: String,

@@ -12,6 +12,9 @@ connectDB();
 
 const app = express();
 
+// Trust proxy for Vercel rate limiting
+app.set('trust proxy', 1);
+
 // Security Middlewares
 app.use(helmet());
 app.use(cookieParser());
@@ -53,6 +56,8 @@ app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/audit-logs', require('./routes/auditRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/settings', require('./routes/settingsRoutes'));
+app.use('/api/visitors', require('./routes/visitorRoutes'));
+
 
 // Basic Health Check Route
 app.get('/health', (req, res) => {
@@ -78,3 +83,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
 });
+
+module.exports = app;

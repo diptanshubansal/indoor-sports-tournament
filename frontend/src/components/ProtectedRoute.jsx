@@ -21,8 +21,19 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Force first-time participant login to change password if they are using a temporary password
+  if (user.role === 'participant' && user.isTempPassword && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
+  }
+
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    if (user.role === 'participant') {
+      return <Navigate to="/participant-dashboard" replace />;
+    } else if (user.role === 'visitor') {
+      return <Navigate to="/visitor-dashboard" replace />;
+    } else {
+      return <Navigate to="/" replace />;
+    }
   }
 
   return children;
