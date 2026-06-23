@@ -150,6 +150,8 @@ router.post('/reset-password', async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
+});
+
 // @route   POST /api/auth/change-password
 // @desc    Change password (clears isTempPassword flag)
 // @access  Private
