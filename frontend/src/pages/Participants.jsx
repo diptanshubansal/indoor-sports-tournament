@@ -24,10 +24,7 @@ const Participants = () => {
     name: '',
     mobileNumber: '',
     email: '',
-    gender: 'male',
-    collegeOrInstitute: '',
-    teamName: '',
-    status: 'active',
+    enrolledGames: '',
     games: ''
   });
 
@@ -77,10 +74,7 @@ const Participants = () => {
       name: '',
       mobileNumber: '',
       email: '',
-      gender: 'male',
-      collegeOrInstitute: '',
-      teamName: '',
-      status: 'active',
+      enrolledGames: '',
       games: ''
     });
     setIsModalOpen(true);
@@ -88,16 +82,14 @@ const Participants = () => {
 
   const handleOpenEdit = (item) => {
     setEditId(item._id);
+    const activeGames = item.enrolledGames || item.games || [];
     setForm({
       participantId: item.participantId,
       name: item.name,
       mobileNumber: item.mobileNumber,
       email: item.email || '',
-      gender: item.gender,
-      collegeOrInstitute: item.collegeOrInstitute,
-      teamName: item.teamName || '',
-      status: item.status,
-      games: item.games ? item.games.join(', ') : ''
+      enrolledGames: activeGames.join(', '),
+      games: activeGames.join(', ')
     });
     setIsModalOpen(true);
   };
@@ -109,8 +101,14 @@ const Participants = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const gamesArray = form.games ? form.games.split(',').map(g => g.trim()).filter(Boolean) : [];
-      const submissionData = { ...form, games: gamesArray };
+      const gamesArray = form.enrolledGames ? form.enrolledGames.split(',').map(g => g.trim()).filter(Boolean) : (form.games ? form.games.split(',').map(g => g.trim()).filter(Boolean) : []);
+      const submissionData = {
+        name: form.name,
+        mobileNumber: form.mobileNumber,
+        email: form.email,
+        enrolledGames: gamesArray,
+        games: gamesArray
+      };
 
       if (editId) {
         const response = await api.put(`/participants/${editId}`, submissionData);
@@ -254,53 +252,21 @@ const Participants = () => {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by ID, name, email..."
+            placeholder="Search by ID, name, phone, email..."
             className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 pl-10 pr-4 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
-          <input
-            type="text"
-            value={collegeFilter}
-            onChange={(e) => setCollegeFilter(e.target.value)}
-            placeholder="Filter college..."
-            className="bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-xs focus:outline-none text-slate-700 dark:text-dark-300"
-          />
-
           <select
             value={gameFilter}
             onChange={(e) => setGameFilter(e.target.value)}
-            className="bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-xs font-semibold focus:outline-none text-slate-700 dark:text-dark-300"
+            className="bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-4 text-xs font-semibold focus:outline-none text-slate-700 dark:text-dark-300"
           >
             <option value="">All Games</option>
             {supportedGames.map(game => (
               <option key={game} value={game}>{game}</option>
             ))}
-          </select>
-
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-slate-400" />
-            <select
-              value={genderFilter}
-              onChange={(e) => setGenderFilter(e.target.value)}
-              className="bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-xs font-semibold focus:outline-none text-slate-700 dark:text-dark-300"
-            >
-              <option value="">All Genders</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-xs font-semibold focus:outline-none text-slate-700 dark:text-dark-300"
-          >
-            <option value="">All Statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
           </select>
         </div>
       </div>
@@ -320,12 +286,11 @@ const Participants = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 dark:bg-dark-950/50 border-b border-slate-100 dark:border-dark-800 text-xs font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider">
-                  <th className="py-4 px-6">ID</th>
-                  <th className="py-4 px-6">Athlete Name</th>
-                  <th className="py-4 px-6">Contact details</th>
-                  <th className="py-4 px-6">College & Enrolled Games</th>
-                  <th className="py-4 px-6">Assigned Team</th>
-                  <th className="py-4 px-6">Status</th>
+                  <th className="py-4 px-6">Player ID</th>
+                  <th className="py-4 px-6">Name</th>
+                  <th className="py-4 px-6">Phone</th>
+                  <th className="py-4 px-6">Email</th>
+                  <th className="py-4 px-6">Enrolled Games</th>
                   <th className="py-4 px-6 text-right">Actions</th>
                 </tr>
               </thead>
@@ -333,52 +298,25 @@ const Participants = () => {
                 {participants.map((player) => (
                   <tr key={player._id} className="hover:bg-slate-50/50 dark:hover:bg-dark-950/20 transition-colors">
                     <td className="py-4 px-6 font-bold text-slate-700 dark:text-slate-300">{player.participantId}</td>
+                    <td className="py-4 px-6 font-semibold text-slate-800 dark:text-white">{player.name}</td>
+                    <td className="py-4 px-6 text-slate-700 dark:text-dark-300 font-medium">{player.mobileNumber}</td>
+                    <td className="py-4 px-6 text-xs text-slate-600 dark:text-dark-300 font-medium">{player.email || '-'}</td>
                     <td className="py-4 px-6">
-                      <div className="font-semibold text-slate-800 dark:text-white">{player.name}</div>
-                      <div className="text-[10px] text-slate-400 capitalize">{player.gender}</div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="text-xs text-slate-600 dark:text-dark-300 font-medium">{player.email}</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">{player.mobileNumber}</div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="text-slate-700 dark:text-dark-300 font-medium">{player.collegeOrInstitute}</div>
-                      {player.games && player.games.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {player.games.map((game, idx) => (
+                      {((player.enrolledGames || player.games) && (player.enrolledGames || player.games).length > 0) ? (
+                        <div className="flex flex-wrap gap-1">
+                          {(player.enrolledGames || player.games).map((game, idx) => (
                             <span key={idx} className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 text-[10px] px-1.5 py-0.5 rounded font-bold border border-indigo-150 dark:border-indigo-900/30">
                               {game}
                             </span>
                           ))}
                         </div>
-                      )}
-                    </td>
-                    <td className="py-4 px-6">
-                      {player.teamName ? (
-                        <span className="bg-primary-50 dark:bg-primary-950/20 text-primary-700 dark:text-primary-400 text-xs px-2.5 py-1 rounded-full font-bold border border-primary-200/50 dark:border-primary-800/30">
-                          {player.teamName}
-                        </span>
                       ) : (
-                        <span className="text-slate-400 dark:text-dark-600 text-xs italic">Unassigned</span>
+                        <span className="text-slate-400 dark:text-dark-600 text-xs italic">None</span>
                       )}
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                        player.status === 'active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-750 dark:bg-dark-850 dark:text-dark-400'
-                      }`}>
-                        {player.status}
-                      </span>
                     </td>
                     <td className="py-4 px-6 text-right">
                       {isEditable ? (
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleResetPassword(player)}
-                            className="p-1.5 hover:bg-slate-100 dark:hover:bg-dark-800 text-slate-500 dark:text-dark-400 hover:text-amber-500 rounded-lg transition-colors border border-slate-200 dark:border-dark-800/50"
-                            title="Reset Credentials"
-                          >
-                            <KeyRound className="w-4 h-4" />
-                          </button>
                           <button
                             onClick={() => handleOpenEdit(player)}
                             className="p-1.5 hover:bg-slate-100 dark:hover:bg-dark-800 text-slate-500 dark:text-dark-400 hover:text-primary-500 rounded-lg transition-colors border border-slate-200 dark:border-dark-800/50"
@@ -423,86 +361,53 @@ const Participants = () => {
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">Participant ID</label>
-                  <input
-                    type="text"
-                    name="participantId"
-                    value={form.participantId}
-                    onChange={handleFormChange}
-                    disabled={!!editId}
-                    placeholder="e.g. P001"
-                    className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">Full Name</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={form.name}
-                    onChange={handleFormChange}
-                    placeholder="John Doe"
-                    className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500"
-                    required
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">Player ID</label>
+                <input
+                  type="text"
+                  name="participantId"
+                  value={editId ? form.participantId : 'Auto-generated'}
+                  disabled
+                  className="w-full bg-slate-100 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2.5 px-3 text-sm text-slate-500 dark:text-dark-400 font-bold focus:outline-none"
+                />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">Mobile Number</label>
-                  <input
-                    type="text"
-                    name="mobileNumber"
-                    value={form.mobileNumber}
-                    onChange={handleFormChange}
-                    placeholder="9876543210"
-                    className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">Email Address</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={form.email}
-                    onChange={handleFormChange}
-                    placeholder="john@icai.org (Optional)"
-                    className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={form.name}
+                  onChange={handleFormChange}
+                  placeholder="e.g. Rahul Sharma"
+                  className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2.5 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500"
+                  required
+                />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">Gender</label>
-                  <select
-                    name="gender"
-                    value={form.gender}
-                    onChange={handleFormChange}
-                    className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500 font-medium"
-                  >
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                    <option value="Not Specified">Not Specified</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">College / Institute</label>
-                  <input
-                    type="text"
-                    name="collegeOrInstitute"
-                    value={form.collegeOrInstitute}
-                    onChange={handleFormChange}
-                    placeholder="ICAI Bathinda Branch"
-                    className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">Phone</label>
+                <input
+                  type="text"
+                  name="mobileNumber"
+                  value={form.mobileNumber}
+                  onChange={handleFormChange}
+                  placeholder="e.g. 9876543210"
+                  className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2.5 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleFormChange}
+                  placeholder="e.g. rahul@gmail.com (Optional)"
+                  className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2.5 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500"
+                />
               </div>
 
               {/* Game Registrations Checkboxes */}
@@ -510,7 +415,7 @@ const Participants = () => {
                 <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-2">Enrolled Games</label>
                 <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-dark-950 p-3.5 rounded-2xl border border-slate-200 dark:border-dark-800 max-h-36 overflow-y-auto">
                   {supportedGames.map(game => {
-                    const selectedList = form.games ? form.games.split(',').map(g => g.trim()) : [];
+                    const selectedList = form.enrolledGames ? form.enrolledGames.split(',').map(g => g.trim()) : (form.games ? form.games.split(',').map(g => g.trim()) : []);
                     const isChecked = selectedList.includes(game);
                     return (
                       <label key={game} className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-dark-300 cursor-pointer">
@@ -518,13 +423,13 @@ const Participants = () => {
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => {
-                            let current = form.games ? form.games.split(',').map(g => g.trim()).filter(Boolean) : [];
+                            let current = form.enrolledGames ? form.enrolledGames.split(',').map(g => g.trim()).filter(Boolean) : (form.games ? form.games.split(',').map(g => g.trim()).filter(Boolean) : []);
                             if (current.includes(game)) {
                               current = current.filter(g => g !== game);
                             } else {
                               current.push(game);
                             }
-                            setForm({ ...form, games: current.join(', ') });
+                            setForm({ ...form, enrolledGames: current.join(', '), games: current.join(', ') });
                           }}
                           className="rounded text-primary-650 focus:ring-primary-500 border-slate-350 dark:border-dark-800 w-4 h-4 cursor-pointer"
                         />
@@ -532,32 +437,6 @@ const Participants = () => {
                       </label>
                     );
                   })}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">Team Name</label>
-                  <input
-                    type="text"
-                    name="teamName"
-                    value={form.teamName}
-                    onChange={handleFormChange}
-                    placeholder="e.g. Bathinda Warriors (Optional)"
-                    className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">Registration Status</label>
-                  <select
-                    name="status"
-                    value={form.status}
-                    onChange={handleFormChange}
-                    className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500 font-medium"
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
                 </div>
               </div>
 
@@ -621,14 +500,18 @@ const Participants = () => {
 
               {importResult && (
                 <div className="space-y-4 animate-[fadeIn_0.2s_ease-out_forwards]">
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-5 gap-3">
                     <div className="p-3 bg-slate-50 dark:bg-dark-950 rounded-xl border border-slate-150 dark:border-dark-850 text-center">
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Total Rows</div>
                       <div className="text-xl font-extrabold text-slate-800 dark:text-white mt-0.5">{importResult.summary.totalRows}</div>
                     </div>
                     <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-100 dark:border-emerald-800/30 text-center">
-                      <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Processed</div>
-                      <div className="text-xl font-extrabold text-emerald-700 dark:text-emerald-400 mt-0.5">{importResult.summary.successCount}</div>
+                      <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Imported</div>
+                      <div className="text-xl font-extrabold text-emerald-700 dark:text-emerald-400 mt-0.5">{importResult.summary.importedCount}</div>
+                    </div>
+                    <div className="p-3 bg-indigo-50 dark:bg-indigo-950/20 rounded-xl border border-indigo-100 dark:border-indigo-800/30 text-center">
+                      <div className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase">Updated</div>
+                      <div className="text-xl font-extrabold text-indigo-700 dark:text-indigo-400 mt-0.5">{importResult.summary.updatedCount || 0}</div>
                     </div>
                     <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-100 dark:border-amber-800/30 text-center">
                       <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase">Duplicates</div>

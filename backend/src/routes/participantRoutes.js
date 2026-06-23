@@ -61,7 +61,7 @@ router.get('/', protect, async (req, res) => {
     if (status) query.status = status;
     if (college) query.collegeOrInstitute = { $regex: college, $options: 'i' };
     if (req.query.game) {
-      query.games = req.query.game;
+      query.enrolledGames = req.query.game;
     }
     if (search) {
       query.$or = [
@@ -84,11 +84,7 @@ router.get('/', protect, async (req, res) => {
 // @access  Private (Super Admin, Admin)
 router.post('/', protect, authorize('super_admin', 'admin'), async (req, res) => {
   try {
-    const { participantId, name, mobileNumber, email, games } = req.body;
-    const existing = await Participant.findOne({ participantId });
-    if (existing) {
-      return res.status(400).json({ success: false, message: `Participant ID ${participantId} already exists` });
-    }
+    const { name, mobileNumber, email, enrolledGames, games } = req.body;
 
     // Check if mobileNumber already registered
     const existingMobile = await Participant.findOne({ mobileNumber });
@@ -96,28 +92,22 @@ router.post('/', protect, authorize('super_admin', 'admin'), async (req, res) =>
       return res.status(400).json({ success: false, message: `Mobile number ${mobileNumber} already registered` });
     }
 
-    const tempPassword = generateTempPassword();
-    req.body.temporaryPassword = tempPassword;
+    const playerID = await generateNextPlayerId(1);
+    req.body.participantId = playerID;
 
     // Handle games field from request
-    if (games && typeof games === 'string') {
-      req.body.games = games.split(',').map(g => g.trim()).filter(Boolean);
+    let gamesList = [];
+    const inputGames = enrolledGames || games;
+    if (inputGames) {
+      if (typeof inputGames === 'string') {
+        gamesList = inputGames.split(',').map(g => g.trim()).filter(Boolean);
+      } else if (Array.isArray(inputGames)) {
+        gamesList = inputGames.map(g => String(g).trim()).filter(Boolean);
+      }
     }
+    req.body.enrolledGames = gamesList;
 
     const participant = await Participant.create(req.body);
-
-    // Create corresponding User credentials for login
-    const userEmail = email || `${participantId.toLowerCase()}@icai-sports.com`;
-    await User.create({
-      userId: participantId.toLowerCase(),
-      name,
-      email: userEmail,
-      mobileNumber,
-      password: tempPassword,
-      role: 'participant',
-      isTempPassword: true,
-      status: 'active'
-    });
 
     await logAudit({
       req,
@@ -144,9 +134,17 @@ router.put('/:id', protect, authorize('super_admin', 'admin'), async (req, res) 
     // Capture old ID for finding User
     const oldId = participant.participantId;
 
-    // Handle games field from request
-    if (req.body.games && typeof req.body.games === 'string') {
-      req.body.games = req.body.games.split(',').map(g => g.trim()).filter(Boolean);
+    // Handle enrolledGames / games field from request
+    const { enrolledGames, games } = req.body;
+    let gamesList = [];
+    const inputGames = enrolledGames !== undefined ? enrolledGames : games;
+    if (inputGames) {
+      if (typeof inputGames === 'string') {
+        gamesList = inputGames.split(',').map(g => g.trim()).filter(Boolean);
+      } else if (Array.isArray(inputGames)) {
+        gamesList = inputGames.map(g => String(g).trim()).filter(Boolean);
+      }
+      req.body.enrolledGames = gamesList;
     }
 
     participant = await Participant.findByIdAndUpdate(req.params.id, req.body, {
@@ -154,16 +152,19 @@ router.put('/:id', protect, authorize('super_admin', 'admin'), async (req, res) 
       runValidators: true,
     });
 
-    // Sync corresponding User
-    const userEmail = participant.email || `${participant.participantId.toLowerCase()}@icai-sports.com`;
-    await User.findOneAndUpdate(
-      { userId: oldId.toLowerCase() },
-      {
-        name: participant.name,
-        email: userEmail,
-        mobileNumber: participant.mobileNumber
-      }
-    );
+    // Sync corresponding User if it exists
+    const userExists = await User.findOne({ userId: oldId.toLowerCase() });
+    if (userExists) {
+      const userEmail = participant.email || `${participant.participantId.toLowerCase()}@icai-sports.com`;
+      await User.findOneAndUpdate(
+        { userId: oldId.toLowerCase() },
+        {
+          name: participant.name,
+          email: userEmail,
+          mobileNumber: participant.mobileNumber
+        }
+      );
+    }
 
     await logAudit({
       req,
@@ -221,7 +222,8 @@ router.post('/import', protect, authorize('super_admin', 'admin'), upload.single
     const rows = xlsx.utils.sheet_to_json(worksheet);
 
     let totalRows = rows.length;
-    let successCount = 0;
+    let importedCount = 0;
+    let updatedCount = 0;
     let duplicateCount = 0;
     let invalidCount = 0;
     const invalidRows = [];
@@ -294,20 +296,23 @@ router.post('/import', protect, authorize('super_admin', 'admin'), upload.single
         try {
           existingParticipant.name = name;
           existingParticipant.email = email || '';
-          existingParticipant.games = gamesList;
+          existingParticipant.enrolledGames = gamesList;
           await existingParticipant.save();
 
-          // Sync with User
-          const userEmail = email || `${existingParticipant.participantId.toLowerCase()}@icai-sports.com`;
-          await User.findOneAndUpdate(
-            { userId: existingParticipant.participantId.toLowerCase() },
-            {
-              name,
-              email: userEmail
-            }
-          );
+          // Sync with User if exists
+          const userExists = await User.findOne({ userId: existingParticipant.participantId.toLowerCase() });
+          if (userExists) {
+            const userEmail = email || `${existingParticipant.participantId.toLowerCase()}@icai-sports.com`;
+            await User.findOneAndUpdate(
+              { userId: existingParticipant.participantId.toLowerCase() },
+              {
+                name,
+                email: userEmail
+              }
+            );
+          }
 
-          successCount++;
+          updatedCount++;
         } catch (err) {
           invalidRows.push({
             row: rowNum,
@@ -321,7 +326,6 @@ router.post('/import', protect, authorize('super_admin', 'admin'), upload.single
       }
 
       try {
-        const tempPassword = generateTempPassword();
         const playerID = await generateNextPlayerId(tempIdCounter);
         tempIdCounter++;
 
@@ -331,26 +335,12 @@ router.post('/import', protect, authorize('super_admin', 'admin'), upload.single
           name,
           mobileNumber: phone,
           email: email || '',
-          games: gamesList,
-          temporaryPassword: tempPassword,
+          enrolledGames: gamesList,
           gender: 'Not Specified',
           collegeOrInstitute: 'Not Specified'
         });
 
-        // Create User record
-        const userEmail = email || `${playerID.toLowerCase()}@icai-sports.com`;
-        await User.create({
-          userId: playerID.toLowerCase(),
-          name,
-          email: userEmail,
-          mobileNumber: phone,
-          password: tempPassword,
-          role: 'participant',
-          isTempPassword: true,
-          status: 'active'
-        });
-
-        successCount++;
+        importedCount++;
       } catch (err) {
         invalidRows.push({
           row: rowNum,
@@ -365,14 +355,15 @@ router.post('/import', protect, authorize('super_admin', 'admin'), upload.single
     await logAudit({
       req,
       action: 'create',
-      details: `Imported participants from Excel. Success: ${successCount}, Duplicates: ${duplicateCount}, Invalid: ${invalidCount}`,
+      details: `Imported participants from Excel. Total: ${totalRows}, Imported: ${importedCount}, Updated: ${updatedCount}, Duplicates: ${duplicateCount}, Invalid: ${invalidCount}`,
     });
 
     res.json({
       success: true,
       summary: {
         totalRows,
-        successCount,
+        importedCount,
+        updatedCount,
         duplicateCount,
         invalidCount
       },
@@ -388,9 +379,8 @@ router.post('/import', protect, authorize('super_admin', 'admin'), upload.single
 // @access  Private (Super Admin, Admin)
 router.get('/export-3sheets', protect, authorize('super_admin', 'admin'), async (req, res) => {
   try {
-    const Visitor = require('../models/Visitor');
     const participants = await Participant.find({}).sort({ participantId: 1 });
-    const visitors = await Visitor.find({}).sort({ visitorId: 1 });
+    const committeeUsers = await User.find({ role: { $in: ['super_admin', 'admin', 'viewer'] } }).sort({ userId: 1 });
 
     // Sheet 1: Participants Master
     const gamesList = ['Chess', 'Carrom', 'Table Tennis', 'Ludo', 'Skipping', 'Spoon Race', 'BGMI', 'Tug of War'];
@@ -402,7 +392,7 @@ router.get('/export-3sheets', protect, authorize('super_admin', 'admin'), async 
         'Email': p.email || '',
       };
       gamesList.forEach(game => {
-        row[game] = p.games && p.games.includes(game) ? 'Yes' : 'No';
+        row[game] = p.enrolledGames && p.enrolledGames.includes(game) ? 'Yes' : 'No';
       });
       return row;
     });
@@ -412,32 +402,34 @@ router.get('/export-3sheets', protect, authorize('super_admin', 'admin'), async 
     const sheet2Data = participants.map(p => ({
       'Player ID': p.participantId,
       'Name': p.name,
-      'Username': p.participantId,
-      'Temporary Password': p.temporaryPassword || '',
+      'Username': 'Pending',
+      'Temporary Password': 'Pending',
       'Phone': p.mobileNumber,
       'Email': p.email || '',
     }));
     const ws2 = xlsx.utils.json_to_sheet(sheet2Data);
 
-    // Sheet 3: Visitor Credentials
-    const sheet3Data = visitors.map(v => ({
-      'Visitor ID': v.visitorId,
-      'Username': v.username,
-      'Password': v.temporaryPassword || '',
+    // Sheet 3: Committee Credentials
+    const sheet3Data = committeeUsers.map(u => ({
+      'Committee ID': u.userId,
+      'Name': u.name,
+      'Role': u.role,
+      'Username': u.userId,
+      'Password': '[SECURE]',
     }));
     const ws3 = xlsx.utils.json_to_sheet(sheet3Data);
 
     const wb = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(wb, ws1, 'Participants Master');
     xlsx.utils.book_append_sheet(wb, ws2, 'Participant Credentials');
-    xlsx.utils.book_append_sheet(wb, ws3, 'Visitor Credentials');
+    xlsx.utils.book_append_sheet(wb, ws3, 'Committee Credentials');
 
     const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
     await logAudit({
       req,
       action: 'export',
-      details: `Exported 3-sheet Excel report containing ${participants.length} participants and ${visitors.length} visitors`,
+      details: `Exported 3-sheet Excel report containing ${participants.length} participants and ${committeeUsers.length} committee members`,
     });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -508,7 +500,8 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
         name: participant.name,
         phone: participant.mobileNumber,
         email: participant.email,
-        games: participant.games || [],
+        games: participant.enrolledGames || [],
+        enrolledGames: participant.enrolledGames || [],
         tournamentDetails: 'ICAI Bathinda Branch Indoor Sports Meet 2026',
         fixturesPlaceholder: 'My Fixtures: Not Scheduled Yet',
         resultsPlaceholder: 'My Results: Pending'

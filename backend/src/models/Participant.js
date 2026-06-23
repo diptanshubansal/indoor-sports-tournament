@@ -33,7 +33,7 @@ const participantSchema = new mongoose.Schema(
       trim: true,
       default: 'Not Specified',
     },
-    games: {
+    enrolledGames: {
       type: [String],
       default: [],
     },
