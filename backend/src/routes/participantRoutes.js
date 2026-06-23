@@ -4,6 +4,8 @@ const multer = require('multer');
 const xlsx = require('xlsx');
 const Participant = require('../models/Participant');
 const User = require('../models/User');
+const Settings = require('../models/Settings');
+const { google } = require('googleapis');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/rbacMiddleware');
 const { logAudit } = require('../middleware/auditLogger');
@@ -509,6 +511,336 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   GET /api/participants/sync-status
+// @desc    Get Google Sheet sync status
+// @access  Private (Super Admin, Admin)
+router.get('/sync-status', protect, authorize('super_admin', 'admin'), async (req, res) => {
+  try {
+    const syncSetting = await Settings.findOne({ key: 'google_sheet_sync_info' });
+    if (!syncSetting) {
+      return res.json({
+        success: true,
+        data: {
+          sheetIdOrUrl: '',
+          sheetName: 'Participants Master',
+          lastSyncTime: null,
+          status: 'idle',
+          summary: {
+            totalRows: 0,
+            importedCount: 0,
+            updatedCount: 0,
+            duplicateCount: 0,
+            invalidCount: 0
+          },
+          errors: []
+        }
+      });
+    }
+    res.json({ success: true, data: syncSetting.value });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   POST /api/participants/sync-google-sheet
+// @desc    Sync participants from Google Sheet
+// @access  Private (Super Admin, Admin)
+router.post('/sync-google-sheet', protect, authorize('super_admin', 'admin'), async (req, res) => {
+  try {
+    const { sheetIdOrUrl, sheetName } = req.body;
+    
+    // Fall back to env variable GOOGLE_SHEET_ID if not passed in body
+    let targetInput = sheetIdOrUrl || process.env.GOOGLE_SHEET_ID;
+    let targetSheetName = sheetName || 'Participants Master';
+
+    if (!targetInput) {
+      return res.status(400).json({ success: false, message: 'Google Sheet URL or Sheet ID is required' });
+    }
+
+    // Extract spreadsheet ID if a URL is provided
+    let spreadsheetId = targetInput.trim();
+    const urlMatch = targetInput.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    if (urlMatch) {
+      spreadsheetId = urlMatch[1];
+    }
+
+    // Verify service account config
+    const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    const privateKeyRaw = process.env.GOOGLE_PRIVATE_KEY;
+
+    if (!serviceAccountEmail || !privateKeyRaw) {
+      return res.status(500).json({
+        success: false,
+        message: 'Google Sheets API credentials (GOOGLE_SERVICE_ACCOUNT_EMAIL or GOOGLE_PRIVATE_KEY) are not configured in backend environment variables.'
+      });
+    }
+
+    // Parse the private key
+    const privateKey = privateKeyRaw.replace(/\\n/g, '\n').replace(/^"(.*)"$/, '$1');
+
+    // Update settings status to "syncing"
+    let currentSyncSetting = await Settings.findOne({ key: 'google_sheet_sync_info' });
+    const currentVal = currentSyncSetting ? currentSyncSetting.value : {};
+    await Settings.findOneAndUpdate(
+      { key: 'google_sheet_sync_info' },
+      {
+        key: 'google_sheet_sync_info',
+        value: {
+          ...currentVal,
+          sheetIdOrUrl: targetInput,
+          sheetName: targetSheetName,
+          status: 'syncing',
+        },
+        updatedBy: req.user._id
+      },
+      { upsert: true }
+    );
+
+    // Initialize Google API Client
+    const auth = new google.auth.JWT(
+      serviceAccountEmail,
+      null,
+      privateKey,
+      ['https://www.googleapis.com/auth/spreadsheets.readonly']
+    );
+
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    // Fetch values from Google Sheet
+    let response;
+    try {
+      response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `${targetSheetName}!A:Z`,
+      });
+    } catch (err) {
+      // Update status to "failed" on read error
+      const failedVal = {
+        sheetIdOrUrl: targetInput,
+        sheetName: targetSheetName,
+        lastSyncTime: new Date(),
+        status: 'failed',
+        summary: {
+          totalRows: 0,
+          importedCount: 0,
+          updatedCount: 0,
+          duplicateCount: 0,
+          invalidCount: 0
+        },
+        errors: [{ row: 0, name: 'N/A', phone: 'N/A', reason: `Google Sheet fetch error: ${err.message}` }]
+      };
+      await Settings.findOneAndUpdate(
+        { key: 'google_sheet_sync_info' },
+        { value: failedVal, updatedBy: req.user._id }
+      );
+      return res.status(400).json({ success: false, message: `Failed to fetch Google Sheet: ${err.message}`, data: failedVal });
+    }
+
+    const rows = response.data.values;
+    if (!rows || rows.length === 0) {
+      const emptyVal = {
+        sheetIdOrUrl: targetInput,
+        sheetName: targetSheetName,
+        lastSyncTime: new Date(),
+        status: 'failed',
+        summary: {
+          totalRows: 0,
+          importedCount: 0,
+          updatedCount: 0,
+          duplicateCount: 0,
+          invalidCount: 0
+        },
+        errors: [{ row: 0, name: 'N/A', phone: 'N/A', reason: 'Google Sheet is empty' }]
+      };
+      await Settings.findOneAndUpdate(
+        { key: 'google_sheet_sync_info' },
+        { value: emptyVal, updatedBy: req.user._id }
+      );
+      return res.status(400).json({ success: false, message: 'Google Sheet is empty', data: emptyVal });
+    }
+
+    const headers = rows[0].map(h => h.trim().toLowerCase());
+    
+    let totalRows = rows.length - 1; // Exclude header row
+    let importedCount = 0;
+    let updatedCount = 0;
+    let duplicateCount = 0;
+    let invalidCount = 0;
+    const invalidRows = [];
+    const seenPhonesInSheet = new Set();
+    let tempIdCounter = 1;
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 1; // 1-based index (header is row 1)
+
+      // Map row array to object using headers
+      const rowData = {};
+      headers.forEach((header, index) => {
+        rowData[header] = row[index] !== undefined ? row[index] : undefined;
+      });
+
+      const name = rowData['name'] ? String(rowData['name']).trim() : null;
+      const phoneRaw = rowData['phone'] !== undefined ? rowData['phone'] : rowData['phone number'] || rowData['mobile'] || rowData['mobile number'];
+      const phone = phoneRaw !== undefined && phoneRaw !== null ? String(phoneRaw).trim() : null;
+      const email = rowData['email'] ? String(rowData['email']).trim() : '';
+
+      // Validation 1: Name and Phone are mandatory
+      if (!name || !phone) {
+        invalidRows.push({
+          row: rowNum,
+          name: name || 'N/A',
+          phone: phone || 'N/A',
+          reason: 'Name and Phone are mandatory'
+        });
+        invalidCount++;
+        continue;
+      }
+
+      // Validation 2: Duplicate phone number in Google Sheet
+      if (seenPhonesInSheet.has(phone)) {
+        duplicateCount++;
+        continue;
+      }
+      seenPhonesInSheet.add(phone);
+
+      // Collect game registrations
+      const gamesList = [];
+      const gameColumns = {
+        'chess': 'Chess',
+        'carrom': 'Carrom',
+        'table tennis': 'Table Tennis',
+        'tabletennis': 'Table Tennis',
+        'ludo': 'Ludo',
+        'skipping': 'Skipping',
+        'spoon race': 'Spoon Race',
+        'spoonrace': 'Spoon Race',
+        'bgmi': 'BGMI',
+        'tug of war': 'Tug of War',
+        'tugofwar': 'Tug of War'
+      };
+
+      for (const colKey of Object.keys(gameColumns)) {
+        const val = rowData[colKey];
+        if (val && String(val).trim().toLowerCase() === 'yes') {
+          const gameName = gameColumns[colKey];
+          if (!gamesList.includes(gameName)) {
+            gamesList.push(gameName);
+          }
+        }
+      }
+
+      // Check if existing participant in database should be updated
+      const existingParticipant = await Participant.findOne({ mobileNumber: phone });
+      if (existingParticipant) {
+        try {
+          existingParticipant.name = name;
+          existingParticipant.email = email || '';
+          existingParticipant.enrolledGames = gamesList;
+          await existingParticipant.save();
+
+          // Sync with User if exists
+          const userExists = await User.findOne({ userId: existingParticipant.participantId.toLowerCase() });
+          if (userExists) {
+            const userEmail = email || `${existingParticipant.participantId.toLowerCase()}@icai-sports.com`;
+            await User.findOneAndUpdate(
+              { userId: existingParticipant.participantId.toLowerCase() },
+              {
+                name,
+                email: userEmail
+              }
+            );
+          }
+          updatedCount++;
+        } catch (err) {
+          invalidRows.push({
+            row: rowNum,
+            name,
+            phone,
+            reason: err.message
+          });
+          invalidCount++;
+        }
+        continue;
+      }
+
+      // Create new participant
+      try {
+        const playerID = await generateNextPlayerId(tempIdCounter);
+        tempIdCounter++;
+
+        await Participant.create({
+          participantId: playerID,
+          name,
+          mobileNumber: phone,
+          email: email || '',
+          enrolledGames: gamesList,
+          gender: 'Not Specified',
+          collegeOrInstitute: 'Not Specified'
+        });
+        importedCount++;
+      } catch (err) {
+        invalidRows.push({
+          row: rowNum,
+          name: name,
+          phone: phone,
+          reason: err.message
+        });
+        invalidCount++;
+      }
+    }
+
+    const successVal = {
+      sheetIdOrUrl: targetInput,
+      sheetName: targetSheetName,
+      lastSyncTime: new Date(),
+      status: 'success',
+      summary: {
+        totalRows,
+        importedCount,
+        updatedCount,
+        duplicateCount,
+        invalidCount
+      },
+      errors: invalidRows
+    };
+
+    await Settings.findOneAndUpdate(
+      { key: 'google_sheet_sync_info' },
+      { value: successVal, updatedBy: req.user._id }
+    );
+
+    await logAudit({
+      req,
+      action: 'update',
+      details: `Google Sheet Sync complete. Total: ${totalRows}, Imported: ${importedCount}, Updated: ${updatedCount}, Duplicates: ${duplicateCount}, Invalid: ${invalidCount}`,
+    });
+
+    res.json({ success: true, data: successVal });
+  } catch (error) {
+    // Handle unhandled errors
+    const errorVal = {
+      sheetIdOrUrl: req.body.sheetIdOrUrl || '',
+      sheetName: req.body.sheetName || 'Participants Master',
+      lastSyncTime: new Date(),
+      status: 'failed',
+      summary: {
+        totalRows: 0,
+        importedCount: 0,
+        updatedCount: 0,
+        duplicateCount: 0,
+        invalidCount: 0
+      },
+      errors: [{ row: 0, name: 'N/A', phone: 'N/A', reason: error.message }]
+    };
+    await Settings.findOneAndUpdate(
+      { key: 'google_sheet_sync_info' },
+      { value: errorVal, updatedBy: req.user?._id }
+    );
+    res.status(500).json({ success: false, message: error.message, data: errorVal });
   }
 });
 

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { TableSkeleton } from '../components/Skeleton';
-import { Plus, Edit2, Trash2, Search, Filter, X, Eye, User, Upload, Download, KeyRound } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Filter, X, Eye, User, Upload, Download, KeyRound, RefreshCw } from 'lucide-react';
 
 const Participants = () => {
   const { user } = useAuth();
@@ -217,6 +218,13 @@ const Participants = () => {
         </div>
         {isEditable && (
           <div className="flex flex-wrap items-center gap-3">
+            <Link
+              to="/google-sheet-sync"
+              className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-dark-850 dark:hover:bg-dark-800 text-slate-800 dark:text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition-all text-sm border border-slate-200 dark:border-dark-800"
+            >
+              <RefreshCw className="w-4 h-4 text-slate-500" />
+              <span>Google Sheet Sync</span>
+            </Link>
             <button
               onClick={() => setIsImportModalOpen(true)}
               className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-dark-850 dark:hover:bg-dark-800 text-slate-800 dark:text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition-all text-sm border border-slate-200 dark:border-dark-800"

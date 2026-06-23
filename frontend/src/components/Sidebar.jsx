@@ -14,7 +14,8 @@ import {
   Settings,
   User,
   LogOut,
-  UsersRound
+  UsersRound,
+  RefreshCw
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
@@ -32,6 +33,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     { path: '/visitor-dashboard', label: 'My Dashboard', icon: LayoutDashboard, roles: ['visitor'] },
     { path: '/tournaments', label: 'Tournaments', icon: Calendar, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
     { path: '/participants', label: 'Participants', icon: Users, roles: ['super_admin', 'admin', 'viewer'] },
+    { path: '/google-sheet-sync', label: 'Google Sheet Sync', icon: RefreshCw, roles: ['super_admin', 'admin'] },
     { path: '/teams', label: 'Teams', icon: UsersRound, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
     { path: '/attendance', label: 'Attendance', icon: ClipboardCheck, roles: ['super_admin', 'admin', 'viewer'] },
     { path: '/leaderboard', label: 'Leaderboard', icon: Trophy, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },

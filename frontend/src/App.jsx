@@ -13,6 +13,7 @@ import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Tournaments from './pages/Tournaments';
 import Participants from './pages/Participants';
+import GoogleSheetSync from './pages/GoogleSheetSync';
 import Teams from './pages/Teams';
 import Attendance from './pages/Attendance';
 import Leaderboard from './pages/Leaderboard';
@@ -69,6 +70,16 @@ function App() {
                   <ProtectedRoute allowedRoles={commonRoles}>
                     <ProtectedPage>
                       <Participants />
+                    </ProtectedPage>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/google-sheet-sync"
+                element={
+                  <ProtectedRoute allowedRoles={writeRoles}>
+                    <ProtectedPage>
+                      <GoogleSheetSync />
                     </ProtectedPage>
                   </ProtectedRoute>
                 }
