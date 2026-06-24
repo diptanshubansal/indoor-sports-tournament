@@ -14,7 +14,8 @@ import {
   User,
   LogOut,
   Gamepad2,
-  RefreshCw
+  RefreshCw,
+  QrCode
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
@@ -33,6 +34,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     { path: '/participant-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/profile', label: 'Profile', icon: User },
     { path: '/my-games', label: 'My Games', icon: Gamepad2 },
+    { path: '/attendance-qr', label: 'Attendance QR', icon: QrCode },
     { path: '/announcements', label: 'Announcements', icon: Bell },
     { path: '/rules', label: 'Rules & Regulations', icon: BookOpen },
   ];
@@ -96,6 +98,13 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 
       {/* Sidebar Footer Profile */}
       <div className="p-4 border-t border-slate-800 bg-slate-950/40 space-y-3">
+        {/* Developer Credit Box */}
+        <div className="px-3 py-2 bg-slate-900 border border-slate-850 rounded-xl text-[10px] text-slate-400 font-semibold leading-relaxed">
+          <div className="text-white">Developer: Diptanshu Bansal</div>
+          <div>M.7009291467</div>
+        </div>
+
+        {/* User Information Box */}
         <div className="flex items-center gap-3 px-2">
           <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold shadow-md shadow-primary-600/30">
             {user?.name?.charAt(0).toUpperCase() || 'U'}
@@ -104,20 +113,6 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             <h3 className="text-white text-sm font-semibold truncate">{user?.name}</h3>
             <span className="text-xs text-slate-400 font-medium capitalize">{user?.role?.replace('_', ' ')}</span>
           </div>
-        </div>
-        
-        {/* Profile & Settings section */}
-        <div className="flex items-center justify-around text-xs font-bold py-1.5 border-t border-b border-slate-800 text-slate-400">
-          <NavLink to={isParticipant ? '/participant-dashboard' : '/'} className="hover:text-white transition-colors">Dashboard</NavLink>
-          <span className="text-slate-700">•</span>
-          <NavLink to="/profile" className="hover:text-white transition-colors">Profile</NavLink>
-          <span className="text-slate-700">•</span>
-          <NavLink to={isParticipant ? '/change-password' : '/settings'} className="hover:text-white transition-colors">Settings</NavLink>
-        </div>
-
-        <div className="px-3 py-2 bg-slate-900 border border-slate-850 rounded-xl text-[10px] text-slate-400 font-semibold leading-relaxed">
-          <div className="text-white">Developer: Diptanshu Bansal</div>
-          <div>M.7009291467</div>
         </div>
 
         <button

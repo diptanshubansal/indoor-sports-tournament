@@ -30,6 +30,7 @@ import VisitorDashboard from './pages/VisitorDashboard';
 import ChangePassword from './pages/ChangePassword';
 import MyGames from './pages/MyGames';
 import TournamentRoom from './pages/TournamentRoom';
+import AttendanceQR from './pages/AttendanceQR';
 
 function App() {
   const allRoles = ['super_admin', 'admin', 'viewer', 'visitor', 'participant'];
@@ -244,6 +245,18 @@ function App() {
                   <ProtectedRoute allowedRoles={['participant']}>
                     <ProtectedPage>
                       <ChangePassword />
+                    </ProtectedPage>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Attendance QR */}
+              <Route
+                path="/attendance-qr"
+                element={
+                  <ProtectedRoute allowedRoles={['participant']}>
+                    <ProtectedPage>
+                      <AttendanceQR />
                     </ProtectedPage>
                   </ProtectedRoute>
                 }

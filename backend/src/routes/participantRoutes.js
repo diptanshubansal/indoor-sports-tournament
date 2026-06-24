@@ -8,6 +8,8 @@ const Settings = require('../models/Settings');
 const Match = require('../models/Match');
 const Round = require('../models/Round');
 const TournamentGame = require('../models/TournamentGame');
+const Tournament = require('../models/Tournament');
+const Attendance = require('../models/Attendance');
 const { google } = require('googleapis');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/rbacMiddleware');
@@ -538,6 +540,14 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
     const activeTournament = await Tournament.findOne({ isArchived: false });
     const tournamentId = activeTournament ? activeTournament._id : null;
 
+    const targetDate = new Date();
+    targetDate.setUTCHours(0, 0, 0, 0);
+    const todayAttendance = await Attendance.findOne({
+      date: targetDate,
+      participantId: participant._id
+    });
+    const todayAttendanceStatus = todayAttendance ? todayAttendance.status : 'absent';
+
     res.json({
       success: true,
       data: {
@@ -551,7 +561,9 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
         fixturesPlaceholder: 'My Fixtures: Not Scheduled Yet',
         resultsPlaceholder: 'My Results: Pending',
         matchInfo,
-        tournamentId
+        tournamentId,
+        tournament: activeTournament,
+        todayAttendanceStatus
       }
     });
   } catch (error) {

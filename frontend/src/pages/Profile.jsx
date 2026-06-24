@@ -53,10 +53,46 @@ const Profile = () => {
     }
   };
 
+  const [passForm, setPassForm] = useState({
+    password: '',
+    confirmPassword: '',
+  });
+  const [changingPass, setChangingPass] = useState(false);
+
+  const handlePassChange = (e) => {
+    setPassForm({ ...passForm, [e.target.name]: e.target.value });
+  };
+
+  const handlePassSubmit = async (e) => {
+    e.preventDefault();
+    if (!passForm.password || passForm.password !== passForm.confirmPassword) {
+      showToast('Passwords do not match', 'warning');
+      return;
+    }
+    if (passForm.password.length < 6) {
+      showToast('Password should be at least 6 characters long', 'warning');
+      return;
+    }
+
+    try {
+      setChangingPass(true);
+      const response = await api.put(`/users/${user._id}`, {
+        password: passForm.password
+      });
+      if (response.data.success) {
+        showToast('Password updated successfully!', 'success');
+        setPassForm({ password: '', confirmPassword: '' });
+      }
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Failed to update password', 'error');
+    } finally {
+      setChangingPass(false);
+    }
+  };
+
   const isParticipant = user?.role === 'participant';
 
   if (isParticipant) {
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${user?.userId?.toUpperCase()}`;
     return (
       <div className="max-w-4xl mx-auto space-y-6 fade-in">
         <div>
@@ -64,7 +100,7 @@ const Profile = () => {
             <User className="w-8 h-8 text-primary-500" />
             <span>My Profile</span>
           </h1>
-          <p className="text-sm text-slate-500 dark:text-dark-400 mt-1">Your registered player profile and check-in QR code.</p>
+          <p className="text-sm text-slate-500 dark:text-dark-400 mt-1">Your registered player profile and account security settings.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -99,7 +135,7 @@ const Profile = () => {
 
               <div>
                 <span className="block text-[10px] font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1">Email Address</span>
-                <div className="text-sm font-bold text-slate-850 dark:text-slate-200 bg-slate-50 dark:bg-dark-950 p-3.5 rounded-xl border border-slate-100 dark:border-dark-850 truncate">
+                <div className="text-sm font-bold text-slate-855 dark:text-slate-200 bg-slate-50 dark:bg-dark-950 p-3.5 rounded-xl border border-slate-100 dark:border-dark-855 truncate">
                   {user?.email || 'Not Specified'}
                 </div>
               </div>
@@ -110,26 +146,66 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* QR Code Card */}
-          <div className="md:col-span-1 bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-6 shadow-sm flex flex-col items-center justify-between text-center">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-dark-800 w-full flex items-center justify-center gap-2">
-              <Trophy className="w-4 h-4 text-primary-500 animate-pulse" />
-              <span>Attendance QR</span>
-            </h3>
+          {/* Change Password Card */}
+          <div className="md:col-span-1 bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-dark-800 w-full flex items-center justify-center gap-2 text-center">
+                <Lock className="w-4 h-4 text-primary-500" />
+                <span>Security Settings</span>
+              </h3>
 
-            <div className="my-6 p-4 bg-slate-50 dark:bg-dark-950 rounded-2xl border border-slate-150 dark:border-dark-850 shadow-inner flex items-center justify-center">
-              <img
-                src={qrUrl}
-                alt="Attendance QR Code"
-                className="w-40 h-40 object-contain rounded-lg border border-slate-200 dark:border-dark-800"
-              />
-            </div>
+              <form onSubmit={handlePassSubmit} className="space-y-4 mt-6">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-wider mb-1.5">New Password</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                      <Lock className="w-3.5 h-3.5" />
+                    </span>
+                    <input
+                      type="password"
+                      name="password"
+                      value={passForm.password}
+                      onChange={handlePassChange}
+                      placeholder="••••••••"
+                      className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 pl-9 text-xs text-slate-800 dark:text-white focus:outline-none"
+                      required
+                    />
+                  </div>
+                </div>
 
-            <div className="space-y-1">
-              <h4 className="text-xs font-bold text-slate-800 dark:text-white">Check-in Pass</h4>
-              <p className="text-[10px] text-slate-450 dark:text-dark-400 leading-normal max-w-[180px]">
-                Present this QR code at the registration desk to mark your daily attendance.
-              </p>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-wider mb-1.5">Confirm Password</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                      <Lock className="w-3.5 h-3.5" />
+                    </span>
+                    <input
+                      type="password"
+                      name="confirmPassword"
+                      value={passForm.confirmPassword}
+                      onChange={handlePassChange}
+                      placeholder="••••••••"
+                      className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 pl-9 text-xs text-slate-800 dark:text-white focus:outline-none"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={changingPass}
+                  className="w-full mt-4 flex items-center justify-center gap-1.5 bg-primary-600 hover:bg-primary-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-md transition-all active:scale-[0.98]"
+                >
+                  {changingPass ? (
+                    <div className="h-4.5 w-4.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Update Password</span>
+                    </>
+                  )}
+                </button>
+              </form>
             </div>
           </div>
         </div>

@@ -70,7 +70,7 @@ const ParticipantDashboard = () => {
     );
   }
 
-  const { participantId, name, phone, email, games, tournamentDetails, fixturesPlaceholder, resultsPlaceholder } = data;
+  const { participantId, name, phone, email, games, tournamentDetails, fixturesPlaceholder, resultsPlaceholder, tournament } = data;
 
   return (
     <div className="space-y-8 fade-in">
@@ -83,9 +83,9 @@ const ParticipantDashboard = () => {
           <span className="bg-primary-500/20 border border-primary-500/30 text-primary-400 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
             Player Dashboard
           </span>
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Welcome, {name}!</h1>
-          <p className="text-sm text-slate-350 max-w-xl">
-            You are officially registered for the {tournamentDetails}. Check your enrolled games, fixtures, and standings below.
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Indoor Sports Tournament</h1>
+          <p className="text-sm text-slate-350 max-w-xl font-bold uppercase tracking-wider">
+            Bathinda Branch of NIRC of ICAI
           </p>
         </div>
 
@@ -95,108 +95,82 @@ const ParticipantDashboard = () => {
         </div>
       </div>
 
-      {/* Profile & Tournament Details Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Profile Card */}
-        <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-dark-800 flex items-center gap-2">
-              <User className="w-5 h-5 text-primary-500" />
-              <span>Contact Profile</span>
-            </h3>
-            
-            <div className="space-y-3.5">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-dark-950 flex items-center justify-center text-slate-500 shrink-0">
-                  <User className="w-4 h-4 text-slate-400" />
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Name</div>
-                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{name}</div>
-                </div>
-              </div>
+      {/* Tournament Details Panel */}
+      <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-6 shadow-sm space-y-6">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-dark-800 flex items-center gap-2">
+          <Trophy className="w-5 h-5 text-primary-500 animate-pulse" />
+          <span>Tournament Details</span>
+        </h3>
 
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-dark-950 flex items-center justify-center text-slate-500 shrink-0">
-                  <Phone className="w-4 h-4 text-slate-400" />
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Phone</div>
-                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{phone}</div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-dark-950 flex items-center justify-center text-slate-500 shrink-0">
-                  <Mail className="w-4 h-4 text-slate-400" />
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email</div>
-                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[150px]">{email || 'Not Provided'}</div>
-                </div>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Tournament Name */}
+          <div className="p-4 bg-slate-50 dark:bg-dark-950 rounded-2xl border border-slate-100 dark:border-dark-900 flex items-start gap-3">
+            <Trophy className="w-5 h-5 text-primary-500 mt-0.5 shrink-0" />
+            <div>
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tournament Name</h4>
+              <p className="text-sm font-semibold text-slate-800 dark:text-white mt-1">{tournament?.name || tournamentDetails}</p>
             </div>
           </div>
-          
-          <div className="mt-6 pt-4 border-t border-slate-100 dark:border-dark-800 text-[11px] text-slate-400 font-medium">
-            Contact admin to modify registration details.
+
+          {/* Venue Location */}
+          <div className="p-4 bg-slate-50 dark:bg-dark-950 rounded-2xl border border-slate-100 dark:border-dark-900 flex items-start gap-3">
+            <MapPin className="w-5 h-5 text-primary-500 mt-0.5 shrink-0" />
+            <div>
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Venue Location</h4>
+              <p className="text-sm font-semibold text-slate-800 dark:text-white mt-1">{tournament?.venue || 'ICAI Bathinda Branch'}</p>
+            </div>
           </div>
-        </div>
 
-        {/* Attendance QR Card */}
-        <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-6 shadow-sm flex flex-col items-center justify-between text-center">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-dark-800 w-full flex items-center justify-center gap-2">
-            <Trophy className="w-5 h-5 text-primary-500 animate-pulse" />
-            <span>Attendance QR</span>
-          </h3>
-          <div className="my-4 p-3 bg-slate-50 dark:bg-dark-950 rounded-2xl border border-slate-150 dark:border-dark-850 shadow-inner flex items-center justify-center shrink-0">
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${participantId}`}
-              alt="Attendance QR Code"
-              className="w-32 h-32 object-contain rounded-lg border border-slate-150 dark:border-dark-800"
-            />
+          {/* Start Date & Time */}
+          <div className="p-4 bg-slate-50 dark:bg-dark-950 rounded-2xl border border-slate-100 dark:border-dark-900 flex items-start gap-3">
+            <Calendar className="w-5 h-5 text-primary-500 mt-0.5 shrink-0" />
+            <div>
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Event Schedule</h4>
+              <p className="text-sm font-semibold text-slate-800 dark:text-white mt-1">
+                {tournament?.startDate ? `${new Date(tournament.startDate).toLocaleDateString()} - ${new Date(tournament.endDate).toLocaleDateString()}` : 'Not Set'}
+              </p>
+            </div>
           </div>
-          <div className="space-y-1">
-            <h4 className="text-xs font-bold text-slate-800 dark:text-white">Daily Check-in Pass</h4>
-            <p className="text-[10px] text-slate-400 dark:text-dark-500 leading-normal max-w-[200px] mx-auto">
-              Scan this at the registration desk to check in.
-            </p>
-          </div>
-        </div>
 
-        {/* Tournament Card */}
-        <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4">
-          <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-dark-800 flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-primary-500" />
-              <span>Tournament Details</span>
-            </h3>
-
-            <div className="space-y-3.5 mt-4">
-              <div className="flex items-start gap-3">
-                <Calendar className="w-5 h-5 text-primary-500 mt-0.5 shrink-0" />
-                <div>
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tournament Name</h4>
-                  <p className="text-sm font-semibold text-slate-800 dark:text-white mt-0.5 leading-tight">{tournamentDetails}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-primary-500 mt-0.5 shrink-0" />
-                <div>
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Venue Location</h4>
-                  <p className="text-sm font-semibold text-slate-800 dark:text-white mt-0.5 leading-tight">ICAI Bathinda Branch</p>
-                </div>
+          {/* Registration Status */}
+          <div className="p-4 bg-slate-50 dark:bg-dark-950 rounded-2xl border border-slate-100 dark:border-dark-900 flex items-start gap-3">
+            <Clock className="w-5 h-5 text-primary-500 mt-0.5 shrink-0" />
+            <div>
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Registration Status</h4>
+              <div className="text-sm font-semibold text-slate-800 dark:text-white mt-1">
+                {tournament?.registrationStartDate ? (
+                  <>
+                    {new Date() >= new Date(tournament.registrationStartDate) && new Date() <= new Date(tournament.registrationEndDate) ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">Open</span>
+                    ) : (
+                      <span className="text-rose-600 dark:text-rose-400 font-bold">Closed</span>
+                    )}
+                    <span className="text-[10px] text-slate-400 dark:text-dark-500 block mt-0.5 font-medium">
+                      ({new Date(tournament.registrationStartDate).toLocaleDateString()} - {new Date(tournament.registrationEndDate).toLocaleDateString()})
+                    </span>
+                  </>
+                ) : 'Not Open'}
               </div>
             </div>
           </div>
 
-          <div className="p-3 bg-primary-500/5 border border-primary-500/10 rounded-2xl flex items-center gap-2.5">
-            <Clock className="w-4.5 h-4.5 text-primary-500 shrink-0" />
-            <span className="text-[10px] text-primary-800 dark:text-primary-400 font-bold leading-normal">
-              Check in daily via scan stations to verify attendance!
-            </span>
+          {/* Tournament Status */}
+          <div className="p-4 bg-slate-50 dark:bg-dark-950 rounded-2xl border border-slate-100 dark:border-dark-900 flex items-start gap-3">
+            <Activity className="w-5 h-5 text-primary-500 mt-0.5 shrink-0" />
+            <div>
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tournament Status</h4>
+              <p className="text-sm font-semibold text-slate-800 dark:text-white mt-1 capitalize">
+                {tournament?.status || 'Draft'}
+              </p>
+            </div>
           </div>
+        </div>
+
+        <div className="p-3 bg-primary-500/5 border border-primary-500/10 rounded-2xl flex items-center gap-2.5 max-w-md">
+          <Clock className="w-4.5 h-4.5 text-primary-500 shrink-0" />
+          <span className="text-[10px] text-primary-800 dark:text-primary-400 font-bold leading-normal">
+            Check in daily via scan stations to verify attendance!
+          </span>
         </div>
       </div>
 
