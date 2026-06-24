@@ -6,15 +6,26 @@ import { QrCode, User, CheckCircle2, XCircle, ShieldAlert, Award } from 'lucide-
 const AttendanceQR = () => {
   const { showToast } = useToast();
   const [data, setData] = useState(null);
+  const [attendance, setAttendance] = useState({
+    attendanceMarked: false,
+    attendanceTime: null,
+    checkedBy: null,
+  });
   const [loading, setLoading] = useState(true);
 
+  // Initial load
   useEffect(() => {
-    const fetchAttendanceData = async () => {
+    const fetchInitialData = async () => {
       try {
         setLoading(true);
         const response = await api.get('/participants/my-dashboard');
         if (response.data.success) {
           setData(response.data.data);
+          setAttendance({
+            attendanceMarked: response.data.data.attendanceMarked,
+            attendanceTime: response.data.data.attendanceTime,
+            checkedBy: response.data.data.checkedBy,
+          });
         }
       } catch (error) {
         showToast('Failed to load attendance QR code', 'error');
@@ -23,8 +34,43 @@ const AttendanceQR = () => {
       }
     };
 
-    fetchAttendanceData();
+    fetchInitialData();
   }, []);
+
+  // Poll for attendance updates
+  useEffect(() => {
+    if (!data) return;
+
+    let intervalId = setInterval(async () => {
+      try {
+        const response = await api.get('/participants/attendance-status');
+        if (response.data.success) {
+          const newStatus = response.data.data;
+          
+          // Trigger a toast notification when status changes from false to true
+          if (newStatus.attendanceMarked && !attendance.attendanceMarked) {
+            showToast('Attendance recorded successfully!', 'success');
+          }
+
+          setAttendance(newStatus);
+        }
+      } catch (error) {
+        console.error('Polling error', error);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(intervalId);
+  }, [data, attendance.attendanceMarked]);
+
+  const formatTime = (isoString) => {
+    if (!isoString) return '';
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return '';
+    }
+  };
 
   if (loading) {
     return (
@@ -49,8 +95,8 @@ const AttendanceQR = () => {
     );
   }
 
-  const { participantId, name, todayAttendanceStatus } = data;
-  const isPresent = todayAttendanceStatus === 'present';
+  const { participantId, name } = data;
+  const isPresent = attendance.attendanceMarked;
 
   return (
     <div className="max-w-md mx-auto space-y-6 fade-in py-4">
@@ -96,23 +142,39 @@ const AttendanceQR = () => {
 
           {/* Daily Status Indicator */}
           <div className="w-full pt-2">
-            <div className={`w-full flex items-center justify-center gap-2 p-3 rounded-2xl border text-sm font-bold transition-all ${
-              isPresent
-                ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/30'
-                : 'bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 border-rose-200/50 dark:border-rose-800/30'
-            }`}>
-              {isPresent ? (
-                <>
+            {isPresent ? (
+              <div className="space-y-4 w-full">
+                {/* Optional Green Card */}
+                <div className="w-full flex items-center justify-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 rounded-2xl text-sm font-bold animate-[scaleIn_0.2s_ease-out]">
                   <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                  <span>Checked In Today</span>
-                </>
-              ) : (
-                <>
-                  <XCircle className="w-5 h-5 text-rose-500 shrink-0" />
-                  <span>Not Checked In Today</span>
-                </>
-              )}
-            </div>
+                  <span>✓ Attendance Successfully Recorded</span>
+                </div>
+
+                {/* Detailed check-in info block */}
+                <div className="w-full bg-slate-50 dark:bg-dark-950/50 p-4 rounded-2xl border border-slate-100 dark:border-dark-900 space-y-3 text-left">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-400 font-semibold">Attendance Status</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
+                      Present
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100 dark:border-dark-850">
+                    <span className="text-slate-400 font-semibold">Attendance Time</span>
+                    <span className="text-slate-800 dark:text-slate-200 font-bold">{formatTime(attendance.attendanceTime)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100 dark:border-dark-850">
+                    <span className="text-slate-400 font-semibold">Checked By</span>
+                    <span className="text-slate-800 dark:text-slate-200 font-bold">{attendance.checkedBy || 'System/Admin'}</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full flex items-center justify-center gap-2 p-3.5 bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-455 border border-rose-200/50 dark:border-rose-800/30 rounded-2xl text-sm font-bold">
+                <XCircle className="w-5 h-5 text-rose-500 shrink-0 animate-pulse" />
+                <span>❌ Not Checked In Today</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

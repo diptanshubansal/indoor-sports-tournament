@@ -545,7 +545,7 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
     const todayAttendance = await Attendance.findOne({
       date: targetDate,
       participantId: participant._id
-    });
+    }).populate('recordedBy', 'name role');
     const todayAttendanceStatus = todayAttendance ? todayAttendance.status : 'absent';
 
     res.json({
@@ -563,7 +563,42 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
         matchInfo,
         tournamentId,
         tournament: activeTournament,
-        todayAttendanceStatus
+        todayAttendanceStatus,
+        attendanceMarked: !!todayAttendance && todayAttendance.status === 'present',
+        attendanceTime: todayAttendance ? todayAttendance.updatedAt : null,
+        checkedBy: todayAttendance && todayAttendance.recordedBy ? todayAttendance.recordedBy.name : null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   GET /api/participants/attendance-status
+// @desc    Get current participant's check-in status (for dashboard/QR live updates)
+// @access  Private (Participant)
+router.get('/attendance-status', protect, authorize('participant'), async (req, res) => {
+  try {
+    const playerID = req.user.userId.toUpperCase();
+    const participant = await Participant.findOne({ participantId: playerID });
+
+    if (!participant) {
+      return res.status(404).json({ success: false, message: 'Participant record not found' });
+    }
+
+    const targetDate = new Date();
+    targetDate.setUTCHours(0, 0, 0, 0);
+    const todayAttendance = await Attendance.findOne({
+      date: targetDate,
+      participantId: participant._id
+    }).populate('recordedBy', 'name role');
+
+    res.json({
+      success: true,
+      data: {
+        attendanceMarked: !!todayAttendance && todayAttendance.status === 'present',
+        attendanceTime: todayAttendance ? todayAttendance.updatedAt : null,
+        checkedBy: todayAttendance && todayAttendance.recordedBy ? todayAttendance.recordedBy.name : null
       }
     });
   } catch (error) {
