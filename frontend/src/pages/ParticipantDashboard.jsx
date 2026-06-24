@@ -96,7 +96,7 @@ const ParticipantDashboard = () => {
       {/* Profile & Tournament Details Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Profile Card */}
-        <div className="lg:col-span-1 bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-dark-800 flex items-center gap-2">
               <User className="w-5 h-5 text-primary-500" />
@@ -130,7 +130,7 @@ const ParticipantDashboard = () => {
                 </div>
                 <div>
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email</div>
-                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[180px]">{email || 'Not Provided'}</div>
+                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[150px]">{email || 'Not Provided'}</div>
                 </div>
               </div>
             </div>
@@ -141,34 +141,57 @@ const ParticipantDashboard = () => {
           </div>
         </div>
 
-        {/* Tournament Card */}
-        <div className="lg:col-span-2 bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-6 shadow-sm space-y-4">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-dark-800 flex items-center gap-2">
+        {/* Attendance QR Card */}
+        <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-6 shadow-sm flex flex-col items-center justify-between text-center">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-dark-800 w-full flex items-center justify-center gap-2">
             <Trophy className="w-5 h-5 text-primary-500 animate-pulse" />
-            <span>Tournament Details</span>
+            <span>Attendance QR</span>
           </h3>
+          <div className="my-4 p-3 bg-slate-50 dark:bg-dark-950 rounded-2xl border border-slate-150 dark:border-dark-850 shadow-inner flex items-center justify-center shrink-0">
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${participantId}`}
+              alt="Attendance QR Code"
+              className="w-32 h-32 object-contain rounded-lg border border-slate-150 dark:border-dark-800"
+            />
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-xs font-bold text-slate-800 dark:text-white">Daily Check-in Pass</h4>
+            <p className="text-[10px] text-slate-400 dark:text-dark-500 leading-normal max-w-[200px] mx-auto">
+              Scan this at the registration desk to check in.
+            </p>
+          </div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-slate-50 dark:bg-dark-950 rounded-2xl border border-slate-100 dark:border-dark-900 flex items-start gap-3">
-              <Calendar className="w-5 h-5 text-primary-500 mt-0.5 shrink-0" />
-              <div>
-                <h4 className="text-xs font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider">Tournament Name</h4>
-                <p className="text-sm font-semibold text-slate-800 dark:text-white mt-1">{tournamentDetails}</p>
+        {/* Tournament Card */}
+        <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-dark-800 flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-primary-500" />
+              <span>Tournament Details</span>
+            </h3>
+
+            <div className="space-y-3.5 mt-4">
+              <div className="flex items-start gap-3">
+                <Calendar className="w-5 h-5 text-primary-500 mt-0.5 shrink-0" />
+                <div>
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tournament Name</h4>
+                  <p className="text-sm font-semibold text-slate-800 dark:text-white mt-0.5 leading-tight">{tournamentDetails}</p>
+                </div>
               </div>
-            </div>
 
-            <div className="p-4 bg-slate-50 dark:bg-dark-950 rounded-2xl border border-slate-100 dark:border-dark-900 flex items-start gap-3">
-              <MapPin className="w-5 h-5 text-primary-500 mt-0.5 shrink-0" />
-              <div>
-                <h4 className="text-xs font-bold text-slate-500 dark:text-dark-400 uppercase tracking-wider">Venue Location</h4>
-                <p className="text-sm font-semibold text-slate-800 dark:text-white mt-1">ICAI Bathinda Branch Auditorium</p>
+              <div className="flex items-start gap-3">
+                <MapPin className="w-5 h-5 text-primary-500 mt-0.5 shrink-0" />
+                <div>
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Venue Location</h4>
+                  <p className="text-sm font-semibold text-slate-800 dark:text-white mt-0.5 leading-tight">ICAI Bathinda Branch</p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="p-4 bg-primary-500/5 border border-primary-500/10 rounded-2xl flex items-center gap-3">
-            <Clock className="w-5 h-5 text-primary-500 shrink-0" />
-            <span className="text-xs text-primary-800 dark:text-primary-400 font-bold">
+          <div className="p-3 bg-primary-500/5 border border-primary-500/10 rounded-2xl flex items-center gap-2.5">
+            <Clock className="w-4.5 h-4.5 text-primary-500 shrink-0" />
+            <span className="text-[10px] text-primary-800 dark:text-primary-400 font-bold leading-normal">
               Check in daily via scan stations to verify attendance!
             </span>
           </div>

@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { TableSkeleton } from '../components/Skeleton';
 import { ShieldAlert, Plus, Edit2, Trash2, X, ShieldCheck, Mail, Key } from 'lucide-react';
 
-const Committee = () => {
+const Committee = ({ showAllUsers = false }) => {
   const { user: currentUser } = useAuth();
   const { showToast } = useToast();
 
@@ -26,15 +26,19 @@ const Committee = () => {
   });
 
   const fetchUsers = async () => {
-    if (currentUser?.role !== 'super_admin') return;
     try {
       setLoading(true);
       const response = await api.get('/users');
       if (response.data.success) {
-        setUsers(response.data.data);
+        let fetchedData = response.data.data || [];
+        if (!showAllUsers) {
+          // Committee Members only
+          fetchedData = fetchedData.filter(u => ['super_admin', 'admin', 'viewer'].includes(u.role));
+        }
+        setUsers(fetchedData);
       }
     } catch (err) {
-      showToast('Failed to fetch committee accounts', 'error');
+      showToast('Failed to fetch user accounts', 'error');
     } finally {
       setLoading(false);
     }
@@ -321,7 +325,13 @@ const Committee = () => {
                     className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-white focus:outline-none font-medium"
                   >
                     <option value="admin">Admin (Read/Write Privileges)</option>
-                    <option value="viewer">Viewer (View-Only Privileges)</option>
+                    <option value="viewer">Viewer / Committee (View-Only Privileges)</option>
+                    {showAllUsers && (
+                      <>
+                        <option value="visitor">Visitor (Guest Observer)</option>
+                        <option value="participant">Participant (Athlete Account)</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 <div>

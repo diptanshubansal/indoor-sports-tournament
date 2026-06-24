@@ -10,11 +10,10 @@ import {
   BookOpen,
   Bell,
   FileText,
-  Shield,
   Settings,
   User,
   LogOut,
-  UsersRound,
+  Gamepad2,
   RefreshCw
 } from 'lucide-react';
 
@@ -27,21 +26,33 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     navigate('/login');
   };
 
-  const navItems = [
-    { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/tournaments', label: 'Tournament', icon: Calendar, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/participants', label: 'Participants', icon: Users, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/leaderboard', label: 'Leaderboard', icon: Trophy, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/rules', label: 'Rules & Regulations', icon: BookOpen, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/announcements', label: 'Announcements', icon: Bell, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/attendance', label: 'Attendance', icon: ClipboardCheck, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/reports', label: 'Reports', icon: FileText, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/google-sync', label: 'Google Sync', icon: RefreshCw, roles: ['super_admin', 'admin'] },
-    { path: '/management', label: 'Management', icon: Settings, roles: ['super_admin', 'admin'] },
-    { path: '/audit-logs', label: 'Audit Logs', icon: Shield, roles: ['super_admin'] },
+  // Build navigation items dynamically based on user role
+  const isParticipant = user?.role === 'participant';
+
+  const participantItems = [
+    { path: '/participant-dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/profile', label: 'Profile', icon: User },
+    { path: '/my-games', label: 'My Games', icon: Gamepad2 },
+    { path: '/announcements', label: 'Announcements', icon: Bell },
+    { path: '/rules', label: 'Rules & Regulations', icon: BookOpen },
   ];
 
-  const filteredItems = navItems.filter(item => item.roles.includes(user?.role));
+  const adminItems = [
+    { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
+    { path: '/tournaments', label: 'Tournament', icon: Calendar, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
+    { path: '/participants', label: 'Participants', icon: Users, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
+    { path: '/leaderboard', label: 'Leaderboard', icon: Trophy, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
+    { path: '/rules', label: 'Rules & Regulations', icon: BookOpen, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
+    { path: '/announcements', label: 'Announcements', icon: Bell, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
+    { path: '/attendance', label: 'Attendance', icon: ClipboardCheck, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
+    { path: '/reports', label: 'Reports', icon: FileText, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
+    { path: '/google-sync', label: 'Google Sync', icon: RefreshCw, roles: ['super_admin', 'admin'] },
+    { path: '/management', label: 'Management', icon: Settings, roles: ['super_admin', 'admin'] },
+  ];
+
+  const filteredItems = isParticipant
+    ? participantItems
+    : adminItems.filter(item => item.roles.includes(user?.role));
 
   return (
     <aside
@@ -95,9 +106,18 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           </div>
         </div>
         
+        {/* Profile & Settings section */}
+        <div className="flex items-center justify-around text-xs font-bold py-1.5 border-t border-b border-slate-800 text-slate-400">
+          <NavLink to={isParticipant ? '/participant-dashboard' : '/'} className="hover:text-white transition-colors">Dashboard</NavLink>
+          <span className="text-slate-700">•</span>
+          <NavLink to="/profile" className="hover:text-white transition-colors">Profile</NavLink>
+          <span className="text-slate-700">•</span>
+          <NavLink to={isParticipant ? '/change-password' : '/settings'} className="hover:text-white transition-colors">Settings</NavLink>
+        </div>
+
         <div className="px-3 py-2 bg-slate-900 border border-slate-850 rounded-xl text-[10px] text-slate-400 font-semibold leading-relaxed">
           <div className="text-white">Developer: Diptanshu Bansal</div>
-          <div>M. 7009291467</div>
+          <div>M.7009291467</div>
         </div>
 
         <button

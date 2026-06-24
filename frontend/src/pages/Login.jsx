@@ -50,7 +50,7 @@ const Login = () => {
         <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
           {/* User ID Field */}
           <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-widest mb-2">Username / User ID</label>
+            <label className="block text-xs font-bold text-slate-300 uppercase tracking-widest mb-2">Username</label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
                 <User className="w-5 h-5" />

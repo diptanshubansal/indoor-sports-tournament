@@ -162,7 +162,7 @@ const SystemSettings = () => {
                 name="appName"
                 value={form.appName}
                 onChange={handleFormChange}
-                placeholder="e.g. ICAI Bathinda Sports Tournament"
+                placeholder="e.g. Indoor Sports Tournament"
                 className="w-full bg-slate-50 border border-slate-250 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-3 px-4 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500 font-medium"
                 required
               />

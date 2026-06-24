@@ -26,9 +26,54 @@ const seedData = async () => {
       console.log('Super Admin seeded successfully! ID: superadmin, Pass: SuperAdmin@123');
     }
 
+    // Seed Visitor User: visitor01 / Visitor@123
+    const visitor = await User.findOne({ userId: 'visitor01' });
+    if (!visitor) {
+      await User.create({
+        userId: 'visitor01',
+        name: 'Visitor 01',
+        email: 'visitor01@icai-sports.com',
+        mobileNumber: '7009291467',
+        password: 'Visitor@123',
+        role: 'visitor',
+        status: 'active'
+      });
+      console.log('Visitor user seeded successfully! ID: visitor01, Pass: Visitor@123');
+    }
+
+    // Seed Committee User: committee01 / Committee@123
+    const committee = await User.findOne({ userId: 'committee01' });
+    if (!committee) {
+      await User.create({
+        userId: 'committee01',
+        name: 'Committee 01',
+        email: 'committee01@icai-sports.com',
+        mobileNumber: '7009291467',
+        password: 'Committee@123',
+        role: 'viewer',
+        status: 'active'
+      });
+      console.log('Committee user seeded successfully! ID: committee01, Pass: Committee@123');
+    }
+
+    // Seed Admin User: admin01 / Admin@123
+    const admin = await User.findOne({ userId: 'admin01' });
+    if (!admin) {
+      await User.create({
+        userId: 'admin01',
+        name: 'Admin 01',
+        email: 'admin01@icai-sports.com',
+        mobileNumber: '7009291467',
+        password: 'Admin@123',
+        role: 'admin',
+        status: 'active'
+      });
+      console.log('Admin user seeded successfully! ID: admin01, Pass: Admin@123');
+    }
+
     // Seed default settings
     const defaultSettings = [
-      { key: 'app_name', value: 'ICAI Bathinda Indoor Sports Tournament' },
+      { key: 'app_name', value: 'Indoor Sports Tournament' },
       { key: 'theme_primary', value: '#10b981' },
       { key: 'qr_verification_enabled', value: true }
     ];

@@ -503,7 +503,7 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
         email: participant.email,
         games: participant.enrolledGames || [],
         enrolledGames: participant.enrolledGames || [],
-        tournamentDetails: 'ICAI Bathinda Branch Indoor Sports Meet 2026',
+        tournamentDetails: 'Indoor Sports Tournament',
         fixturesPlaceholder: 'My Fixtures: Not Scheduled Yet',
         resultsPlaceholder: 'My Results: Pending'
       }

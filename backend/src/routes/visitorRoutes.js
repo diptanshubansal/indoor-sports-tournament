@@ -163,7 +163,7 @@ router.get('/dashboard', protect, authorize('visitor'), async (req, res) => {
       data: {
         title: 'Visitor Hub',
         announcementsCount: 5,
-        tournamentDetails: 'ICAI Bathinda Branch Indoor Sports Meet 2026',
+        tournamentDetails: 'Indoor Sports Tournament',
         message: 'Welcome! You have read-only access to view tournament status, rules, and results.'
       }
     });

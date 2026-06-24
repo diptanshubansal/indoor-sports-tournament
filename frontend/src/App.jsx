@@ -28,8 +28,10 @@ import Profile from './pages/Profile';
 import ParticipantDashboard from './pages/ParticipantDashboard';
 import VisitorDashboard from './pages/VisitorDashboard';
 import ChangePassword from './pages/ChangePassword';
+import MyGames from './pages/MyGames';
 
 function App() {
+  const allRoles = ['super_admin', 'admin', 'viewer', 'visitor', 'participant'];
   const commonRoles = ['super_admin', 'admin', 'viewer', 'visitor'];
   const writeRoles = ['super_admin', 'admin'];
 
@@ -118,7 +120,7 @@ function App() {
               <Route
                 path="/rules"
                 element={
-                  <ProtectedRoute allowedRoles={commonRoles}>
+                  <ProtectedRoute allowedRoles={allRoles}>
                     <ProtectedPage>
                       <Rules />
                     </ProtectedPage>
@@ -128,9 +130,19 @@ function App() {
               <Route
                 path="/announcements"
                 element={
-                  <ProtectedRoute allowedRoles={commonRoles}>
+                  <ProtectedRoute allowedRoles={allRoles}>
                     <ProtectedPage>
                       <Announcements />
+                    </ProtectedPage>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/my-games"
+                element={
+                  <ProtectedRoute allowedRoles={['participant']}>
+                    <ProtectedPage>
+                      <MyGames />
                     </ProtectedPage>
                   </ProtectedRoute>
                 }

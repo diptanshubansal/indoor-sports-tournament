@@ -121,14 +121,24 @@ router.post('/qr', protect, authorize('super_admin', 'admin'), async (req, res) 
       updateDoc.participantId = participant._id;
     }
 
+    const name = user ? user.name : participant.name;
+    const typeLabel = user ? 'Committee Member' : 'Participant';
+
+    const existing = await Attendance.findOne(query);
+    if (existing && existing.status === 'present') {
+      return res.json({
+        success: true,
+        alreadyPresent: true,
+        message: `${name} (${typeLabel}) is already checked in!`,
+        data: existing
+      });
+    }
+
     const record = await Attendance.findOneAndUpdate(
       query,
       { $set: updateDoc },
       { upsert: true, new: true }
     );
-
-    const name = user ? user.name : participant.name;
-    const typeLabel = user ? 'Committee Member' : 'Participant';
 
     await logAudit({
       req,

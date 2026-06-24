@@ -11,7 +11,7 @@ const VisitorDashboard = () => {
   const navigate = useNavigate();
   const [details, setDetails] = useState({
     title: 'Indoor Sports Tournament',
-    tournamentDetails: 'ICAI Bathinda Branch Indoor Sports Meet 2026',
+    tournamentDetails: 'Indoor Sports Tournament',
     message: 'Welcome! Explore tournament fixtures, results, leaderboards, rules, and announcements.'
   });
   const [loading, setLoading] = useState(true);

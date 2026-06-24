@@ -7,13 +7,10 @@ import {
   Trophy,
   UserCheck,
   Megaphone,
-  TrendingUp,
   Clock,
   Pin
 } from 'lucide-react';
 import {
-  AreaChart,
-  Area,
   BarChart,
   Bar,
   XAxis,
@@ -21,8 +18,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
   Legend
 } from 'recharts';
 
@@ -35,25 +30,18 @@ const Dashboard = () => {
     totalParticipants: 0,
     totalTeams: 0,
     committeeMembers: 0,
-    attendanceRate: 85,
     recentAnnouncements: [],
   });
 
-  const [attendanceChartData, setAttendanceChartData] = useState([
-    { name: 'Mon', attendance: 75 },
-    { name: 'Tue', attendance: 82 },
-    { name: 'Wed', attendance: 85 },
-    { name: 'Thu', attendance: 89 },
-    { name: 'Fri', attendance: 92 },
-    { name: 'Sat', attendance: 95 },
-  ]);
-
   const [participationChartData, setParticipationChartData] = useState([
-    { name: 'Badminton', teams: 12, players: 24 },
-    { name: 'Table Tennis', teams: 8, players: 16 },
     { name: 'Chess', teams: 16, players: 16 },
     { name: 'Carrom', teams: 10, players: 20 },
-    { name: 'Pool', teams: 6, players: 12 },
+    { name: 'Table Tennis', teams: 8, players: 16 },
+    { name: 'Ludo', teams: 12, players: 24 },
+    { name: 'Skipping', teams: 6, players: 6 },
+    { name: 'Spoon Race', teams: 14, players: 14 },
+    { name: 'BGMI', teams: 8, players: 32 },
+    { name: 'Tug of War', teams: 4, players: 40 },
   ]);
 
   useEffect(() => {
@@ -61,31 +49,35 @@ const Dashboard = () => {
       try {
         setLoading(true);
         // Load settings, tournaments, users, participants, teams, announcements
-        const [tourneysRes, usersRes, participantsRes, teamsRes, noticesRes, attendanceRes] = await Promise.all([
+        const [tourneysRes, usersRes, participantsRes, teamsRes, noticesRes] = await Promise.all([
           api.get('/tournaments'),
           api.get('/users').catch(() => ({ data: { count: 3 } })), // safety for viewers
           api.get('/participants'),
           api.get('/teams'),
           api.get('/announcements/dashboard'),
-          api.get('/attendance/stats'),
         ]);
 
         const tourneys = tourneysRes.data.data || [];
         const activeT = tourneys.filter(t => t.status === 'ongoing').length;
         const upcomingT = tourneys.filter(t => t.status === 'upcoming').length;
 
-        const rawAttendance = attendanceRes.data?.data || [];
-        let avgAttendance = 85;
-        if (rawAttendance.length > 0) {
-          avgAttendance = Math.round(
-            rawAttendance.reduce((acc, curr) => acc + curr.percentage, 0) / rawAttendance.length
-          );
-          // format chart data
-          const formatted = rawAttendance.map(item => ({
-            name: new Date(item.date).toLocaleDateString(undefined, { weekday: 'short' }),
-            attendance: item.percentage
-          }));
-          setAttendanceChartData(formatted.slice(-7)); // show last 7 days
+        // Populate participation dynamic stats if available, or generate from teams/participants
+        // To prevent blank chart, we can map games participation or keep the default formatted data
+        const participants = participantsRes.data.data || [];
+        const gamesList = ['Chess', 'Carrom', 'Table Tennis', 'Ludo', 'Skipping', 'Spoon Race', 'BGMI', 'Tug of War'];
+        const mappedData = gamesList.map(game => {
+          const playersCount = participants.filter(p => p.enrolledGames && p.enrolledGames.includes(game)).length;
+          // Estimate teams count roughly or defaults
+          const teamsCount = Math.ceil(playersCount / (game === 'Tug of War' ? 8 : game === 'BGMI' ? 4 : game === 'Carrom' || game === 'Table Tennis' ? 2 : 1));
+          return {
+            name: game,
+            teams: teamsCount || 4,
+            players: playersCount || 4
+          };
+        });
+        
+        if (participants.length > 0) {
+          setParticipationChartData(mappedData);
         }
 
         setStats({
@@ -95,7 +87,6 @@ const Dashboard = () => {
           totalParticipants: participantsRes.data.count || 0,
           totalTeams: teamsRes.data.count || 0,
           committeeMembers: usersRes.data.count || 3,
-          attendanceRate: avgAttendance,
           recentAnnouncements: noticesRes.data.data || [],
         });
       } catch (error) {
@@ -117,9 +108,13 @@ const Dashboard = () => {
           <CardSkeleton />
           <CardSkeleton />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ChartSkeleton />
-          <ChartSkeleton />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <ChartSkeleton />
+          </div>
+          <div className="lg:col-span-1">
+            <ChartSkeleton />
+          </div>
         </div>
       </div>
     );
@@ -127,9 +122,9 @@ const Dashboard = () => {
 
   const kpis = [
     { label: 'Total Tournaments', value: stats.totalTournaments, subtext: `${stats.activeTournaments} Ongoing`, icon: Calendar, color: 'text-primary-500 bg-primary-50 dark:bg-primary-950/20' },
-    { label: 'Total Participants', value: stats.totalParticipants, subtext: `${stats.totalTeams} Registered Teams`, icon: Users, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/20' },
-    { label: 'Committee Size', value: stats.committeeMembers, subtext: 'Active organizers', icon: Trophy, color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/20' },
-    { label: 'Attendance Rate', value: `${stats.attendanceRate}%`, subtext: 'Daily average check-in', icon: UserCheck, color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/20' },
+    { label: 'Total Participants', value: stats.totalParticipants, subtext: 'Registered Athletes', icon: Users, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/20' },
+    { label: 'Registered Teams', value: stats.totalTeams, subtext: 'Across all sports', icon: Trophy, color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/20' },
+    { label: 'Committee Size', value: stats.committeeMembers, subtext: 'Active coordinators', icon: UserCheck, color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/20' },
   ];
 
   return (
@@ -169,28 +164,21 @@ const Dashboard = () => {
 
       {/* Analytics Charts & Dashboard widgets */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Attendance chart */}
+        {/* Participation Trend Chart */}
         <div className="lg:col-span-2 bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-2xl p-5 shadow-sm">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white">Attendance Trend</h3>
-              <p className="text-xs text-slate-400">Daily check-in percentages for committee and players</p>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white">Tournament Participation Trend</h3>
+              <p className="text-xs text-slate-400">Breakdown of teams and registered players per sport type</p>
             </div>
-            <TrendingUp className="w-5 h-5 text-primary-500" />
           </div>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={attendanceChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
+              <BarChart data={participationChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:hidden" />
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" className="hidden dark:block" />
                 <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} domain={[0, 100]} />
+                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'rgba(15, 23, 42, 0.9)',
@@ -200,8 +188,10 @@ const Dashboard = () => {
                     fontSize: '12px',
                   }}
                 />
-                <Area type="monotone" dataKey="attendance" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorAttendance)" />
-              </AreaChart>
+                <Legend verticalAlign="top" height={36} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '11px' }} />
+                <Bar dataKey="teams" fill="#10b981" radius={[4, 4, 0, 0]} name="Teams Registered" />
+                <Bar dataKey="players" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Athletes Registered" />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -219,7 +209,7 @@ const Dashboard = () => {
           <div className="flex-1 space-y-4 overflow-y-auto max-h-64 pr-1">
             {stats.recentAnnouncements.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full py-12 text-center text-slate-400">
-                <Clock className="w-8 h-8 mb-2 opacity-55" />
+                <Megaphone className="w-8 h-8 mb-2 opacity-55 animate-bounce" />
                 <p className="text-xs font-semibold">No recent announcements posted</p>
               </div>
             ) : (
@@ -238,7 +228,7 @@ const Dashboard = () => {
                     </h4>
                     {item.isPinned && <Pin className="w-3.5 h-3.5 text-primary-500 fill-primary-500 shrink-0" />}
                   </div>
-                  <p className="text-[11px] text-slate-600 dark:text-dark-300 mt-1 line-clamp-3 leading-relaxed">
+                  <p className="text-[11px] text-slate-650 dark:text-dark-300 mt-1 line-clamp-3 leading-relaxed">
                     {item.content}
                   </p>
                   <span className="text-[9px] text-slate-400 dark:text-dark-500 mt-2 block font-medium">
@@ -248,38 +238,6 @@ const Dashboard = () => {
               ))
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Participation Breakdown Chart */}
-      <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-2xl p-5 shadow-sm">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white">Tournament Participation Trend</h3>
-            <p className="text-xs text-slate-400">Breakdown of teams and registered players per sport type</p>
-          </div>
-        </div>
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={participationChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:hidden" />
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" className="hidden dark:block" />
-              <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
-              <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#fff',
-                  fontSize: '12px',
-                }}
-              />
-              <Legend verticalAlign="top" height={36} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '11px' }} />
-              <Bar dataKey="teams" fill="#10b981" radius={[4, 4, 0, 0]} name="Teams Registered" />
-              <Bar dataKey="players" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Athletes Registered" />
-            </BarChart>
-          </ResponsiveContainer>
         </div>
       </div>
     </div>

@@ -141,7 +141,7 @@ const Reports = () => {
         <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-2xl overflow-hidden shadow-sm">
           {/* Printable Report Header */}
           <div className="hidden print:block p-6 text-center border-b border-slate-200">
-            <h2 className="text-2xl font-bold uppercase tracking-wider">ICAI Bathinda Sports Tournament</h2>
+            <h2 className="text-2xl font-bold uppercase tracking-wider">Indoor Sports Tournament</h2>
             <h3 className="text-sm font-semibold text-slate-500 capitalize mt-1">{activeTab} Analytical Report</h3>
             <span className="text-[10px] text-slate-400 mt-2 block">Generated on {new Date().toLocaleString()}</span>
           </div>
