@@ -564,9 +564,10 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
         tournamentId,
         tournament: activeTournament,
         todayAttendanceStatus,
-        attendanceMarked: !!todayAttendance && todayAttendance.status === 'present',
-        attendanceTime: todayAttendance ? todayAttendance.updatedAt : null,
-        checkedBy: todayAttendance && todayAttendance.recordedBy ? todayAttendance.recordedBy.name : null
+        isPresent: !!todayAttendance && todayAttendance.status === 'present',
+        checkedInAt: todayAttendance ? todayAttendance.updatedAt : null,
+        checkedBy: todayAttendance && todayAttendance.recordedBy ? todayAttendance.recordedBy.name : null,
+        playerId: participant.participantId
       }
     });
   } catch (error) {
@@ -596,9 +597,10 @@ router.get('/attendance-status', protect, authorize('participant'), async (req, 
     res.json({
       success: true,
       data: {
-        attendanceMarked: !!todayAttendance && todayAttendance.status === 'present',
-        attendanceTime: todayAttendance ? todayAttendance.updatedAt : null,
-        checkedBy: todayAttendance && todayAttendance.recordedBy ? todayAttendance.recordedBy.name : null
+        isPresent: !!todayAttendance && todayAttendance.status === 'present',
+        checkedInAt: todayAttendance ? todayAttendance.updatedAt : null,
+        checkedBy: todayAttendance && todayAttendance.recordedBy ? todayAttendance.recordedBy.name : null,
+        playerId: participant.participantId
       }
     });
   } catch (error) {

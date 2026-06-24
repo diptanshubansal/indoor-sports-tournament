@@ -7,9 +7,10 @@ const AttendanceQR = () => {
   const { showToast } = useToast();
   const [data, setData] = useState(null);
   const [attendance, setAttendance] = useState({
-    attendanceMarked: false,
-    attendanceTime: null,
+    isPresent: false,
+    checkedInAt: null,
     checkedBy: null,
+    playerId: '',
   });
   const [loading, setLoading] = useState(true);
 
@@ -22,9 +23,10 @@ const AttendanceQR = () => {
         if (response.data.success) {
           setData(response.data.data);
           setAttendance({
-            attendanceMarked: response.data.data.attendanceMarked,
-            attendanceTime: response.data.data.attendanceTime,
+            isPresent: response.data.data.isPresent,
+            checkedInAt: response.data.data.checkedInAt,
             checkedBy: response.data.data.checkedBy,
+            playerId: response.data.data.playerId || response.data.data.participantId,
           });
         }
       } catch (error) {
@@ -37,7 +39,7 @@ const AttendanceQR = () => {
     fetchInitialData();
   }, []);
 
-  // Poll for attendance updates
+  // Poll for attendance updates every 5 seconds
   useEffect(() => {
     if (!data) return;
 
@@ -48,7 +50,7 @@ const AttendanceQR = () => {
           const newStatus = response.data.data;
           
           // Trigger a toast notification when status changes from false to true
-          if (newStatus.attendanceMarked && !attendance.attendanceMarked) {
+          if (newStatus.isPresent && !attendance.isPresent) {
             showToast('Attendance recorded successfully!', 'success');
           }
 
@@ -57,10 +59,10 @@ const AttendanceQR = () => {
       } catch (error) {
         console.error('Polling error', error);
       }
-    }, 3000); // Poll every 3 seconds
+    }, 5000); // Poll every 5 seconds
 
     return () => clearInterval(intervalId);
-  }, [data, attendance.attendanceMarked]);
+  }, [data, attendance.isPresent]);
 
   const formatTime = (isoString) => {
     if (!isoString) return '';
@@ -95,8 +97,9 @@ const AttendanceQR = () => {
     );
   }
 
-  const { participantId, name } = data;
-  const isPresent = attendance.attendanceMarked;
+  const { name } = data;
+  const participantId = attendance.playerId || data.participantId;
+  const isPresent = attendance.isPresent;
 
   return (
     <div className="max-w-md mx-auto space-y-6 fade-in py-4">
@@ -144,46 +147,41 @@ const AttendanceQR = () => {
           <div className="w-full pt-2">
             {isPresent ? (
               <div className="space-y-4 w-full">
-                {/* Optional Green Card */}
+                {/* Green Status Card */}
                 <div className="w-full flex items-center justify-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 rounded-2xl text-sm font-bold animate-[scaleIn_0.2s_ease-out]">
                   <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                  <span>✓ Attendance Successfully Recorded</span>
+                  <span>✅ Attendance Marked</span>
                 </div>
 
                 {/* Detailed check-in info block */}
                 <div className="w-full bg-slate-50 dark:bg-dark-950/50 p-4 rounded-2xl border border-slate-100 dark:border-dark-900 space-y-3 text-left">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-400 font-semibold">Attendance Status</span>
+                    <span className="text-slate-400 font-semibold">Status</span>
                     <span className="text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
                       Present
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100 dark:border-dark-850">
-                    <span className="text-slate-400 font-semibold">Attendance Time</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{formatTime(attendance.attendanceTime)}</span>
+                    <span className="text-slate-400 font-semibold">Checked-In Time</span>
+                    <span className="text-slate-800 dark:text-slate-200 font-bold">{formatTime(attendance.checkedInAt)}</span>
                   </div>
-                  <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100 dark:border-dark-850">
-                    <span className="text-slate-400 font-semibold">Checked By</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{attendance.checkedBy || 'System/Admin'}</span>
-                  </div>
+                  {attendance.checkedBy && (
+                    <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100 dark:border-dark-850">
+                      <span className="text-slate-400 font-semibold">Checked By</span>
+                      <span className="text-slate-800 dark:text-slate-200 font-bold">{attendance.checkedBy}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
-              <div className="w-full flex items-center justify-center gap-2 p-3.5 bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-455 border border-rose-200/50 dark:border-rose-800/30 rounded-2xl text-sm font-bold">
+              <div className="w-full flex items-center justify-center gap-2 p-3.5 bg-rose-50 dark:bg-rose-950/20 text-rose-705 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/30 rounded-2xl text-sm font-bold">
                 <XCircle className="w-5 h-5 text-rose-500 shrink-0 animate-pulse" />
                 <span>❌ Not Checked In Today</span>
               </div>
             )}
           </div>
         </div>
-      </div>
-
-      <div className="p-4 bg-primary-500/5 border border-primary-500/10 rounded-2xl flex items-start gap-3">
-        <QrCode className="w-5 h-5 text-primary-500 shrink-0 mt-0.5" />
-        <p className="text-[11px] text-primary-800 dark:text-primary-400 leading-normal font-medium">
-          A registration committee desk scanner will read this code at the venue. Please keep this screen open or take a screenshot when arriving.
-        </p>
       </div>
     </div>
   );
