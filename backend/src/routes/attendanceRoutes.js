@@ -9,9 +9,17 @@ const { logAudit } = require('../middleware/auditLogger');
 
 // Get Date formatted without time
 const getNormalizedDate = (dateStr) => {
-  const d = dateStr ? new Date(dateStr) : new Date();
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
+  if (dateStr) {
+    const d = new Date(dateStr);
+    d.setUTCHours(0, 0, 0, 0);
+    return d;
+  }
+  // India Standard Time (UTC+5.5)
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60 * 1000);
+  const ist = new Date(utc + (5.5 * 60 * 60 * 1000));
+  ist.setUTCHours(0, 0, 0, 0);
+  return ist;
 };
 
 // @route   GET /api/attendance

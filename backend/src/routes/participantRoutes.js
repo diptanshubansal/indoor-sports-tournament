@@ -56,6 +56,15 @@ const generateTempPassword = () => {
   return tempPass;
 };
 
+// Get today's date in local Indian timezone (UTC+5.5) normalized to midnight UTC
+const getTodayIndianDate = () => {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60 * 1000);
+  const ist = new Date(utc + (5.5 * 60 * 60 * 1000));
+  ist.setUTCHours(0, 0, 0, 0);
+  return ist;
+};
+
 // @route   GET /api/participants
 // @desc    Get all participants with filters
 // @access  Private (All roles)
@@ -540,8 +549,7 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
     const activeTournament = await Tournament.findOne({ isArchived: false });
     const tournamentId = activeTournament ? activeTournament._id : null;
 
-    const targetDate = new Date();
-    targetDate.setUTCHours(0, 0, 0, 0);
+    const targetDate = getTodayIndianDate();
     const todayAttendance = await Attendance.findOne({
       date: targetDate,
       participantId: participant._id
@@ -587,8 +595,7 @@ router.get('/attendance-status', protect, authorize('participant'), async (req, 
       return res.status(404).json({ success: false, message: 'Participant record not found' });
     }
 
-    const targetDate = new Date();
-    targetDate.setUTCHours(0, 0, 0, 0);
+    const targetDate = getTodayIndianDate();
     const todayAttendance = await Attendance.findOne({
       date: targetDate,
       participantId: participant._id

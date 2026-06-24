@@ -10,8 +10,14 @@ const Attendance = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   
-  // Single-day event uses today's date automatically
-  const [date] = useState(new Date().toISOString().split('T')[0]);
+  // Single-day event uses today's local date automatically
+  const getLocalYYYYMMDD = (d = new Date()) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const [date] = useState(getLocalYYYYMMDD());
   const [activeTab, setActiveTab] = useState('participant'); // 'participant', 'committee', 'scanner'
   const [people, setPeople] = useState([]);
   const [attendanceMap, setAttendanceMap] = useState({}); // id -> status ('present' / 'absent')
@@ -32,14 +38,23 @@ const Attendance = () => {
   const playSuccessSound = () => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1200, ctx.currentTime); // 1200Hz beep
+      gain.gain.setValueAtTime(0.35, ctx.currentTime); // Louder
+      
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.frequency.setValueAtTime(1000, ctx.currentTime); // 1000Hz beep
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      
       osc.start();
-      osc.stop(ctx.currentTime + 0.15); // 150ms beep
+      osc.stop(ctx.currentTime + 0.18);
     } catch (e) {
       console.warn('Audio feedback failed:', e);
     }
@@ -48,14 +63,23 @@ const Attendance = () => {
   const playErrorSound = () => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
+      
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(180, ctx.currentTime); // 180Hz buzz
+      gain.gain.setValueAtTime(0.35, ctx.currentTime);
+      
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.frequency.setValueAtTime(300, ctx.currentTime); // 300Hz beep
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      
       osc.start();
-      osc.stop(ctx.currentTime + 0.3); // 300ms beep
+      osc.stop(ctx.currentTime + 0.35);
     } catch (e) {
       console.warn('Audio feedback failed:', e);
     }
