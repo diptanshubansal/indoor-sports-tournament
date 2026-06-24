@@ -80,14 +80,15 @@ router.get('/attendance', protect, async (req, res) => {
 });
 
 // @route   GET /api/reports/participation
-// @desc    Get participants college & team distribution statistics
+// @desc    Get participants game enrollment distribution statistics
 // @access  Private (All roles)
 router.get('/participation', protect, async (req, res) => {
   try {
-    const collegeDistribution = await Participant.aggregate([
+    const gameDistribution = await Participant.aggregate([
+      { $unwind: '$enrolledGames' },
       {
         $group: {
-          _id: '$collegeOrInstitute',
+          _id: '$enrolledGames',
           count: { $sum: 1 },
           activeCount: {
             $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
@@ -96,7 +97,7 @@ router.get('/participation', protect, async (req, res) => {
       },
       { $sort: { count: -1 } }
     ]);
-    res.json({ success: true, data: collegeDistribution });
+    res.json({ success: true, data: gameDistribution });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

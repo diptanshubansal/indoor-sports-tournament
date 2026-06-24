@@ -49,9 +49,9 @@ const Reports = () => {
         });
       });
     } else if (activeTab === 'participation') {
-      csvContent += 'College / Institute,Athlete Registrations,Active Registrations\r\n';
+      csvContent += 'Game Name,Athlete Registrations,Active Registrations\r\n';
       data.forEach(item => {
-        csvContent += `"${item._id}","${item.count}","${item.activeCount}"\r\n`;
+        csvContent += `"${item._id || 'General'}","${item.count}","${item.activeCount}"\r\n`;
       });
     } else if (activeTab === 'committee') {
       csvContent += 'Committee Name,Assigned Role,Performed Action,Audit Count\r\n';
@@ -110,7 +110,7 @@ const Reports = () => {
         {[
           { key: 'tournaments', label: 'Tourneys Summary' },
           { key: 'attendance', label: 'Attendance logs' },
-          { key: 'participation', label: 'Participation breakdown' },
+          { key: 'participation', label: 'Game registrations' },
           { key: 'committee', label: 'Committee activity' },
           { key: 'leaderboard', label: 'Leaderboard tallies' }
         ].map((tab) => (
@@ -213,7 +213,7 @@ const Reports = () => {
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-dark-950/50 border-b border-slate-100 dark:border-dark-800 text-xs font-bold text-slate-505 dark:text-dark-400 uppercase tracking-wider">
-                    <th className="py-4 px-6">College / Institute Name</th>
+                    <th className="py-4 px-6">Game / Sport Name</th>
                     <th className="py-4 px-6 text-center">Registered Competitors Count</th>
                     <th className="py-4 px-6 text-center">Active Competitors Count</th>
                   </tr>
@@ -221,7 +221,7 @@ const Reports = () => {
                 <tbody className="divide-y divide-slate-100 dark:divide-dark-800/60 font-medium">
                   {data.map((item, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-dark-950/20">
-                      <td className="py-4 px-6 font-bold text-slate-800 dark:text-white">{item._id || 'Unknown / General'}</td>
+                      <td className="py-4 px-6 font-bold text-slate-800 dark:text-white">{item._id || 'General'}</td>
                       <td className="py-4 px-6 text-center font-semibold text-slate-700 dark:text-slate-300">{item.count} players</td>
                       <td className="py-4 px-6 text-center text-emerald-500 font-extrabold">{item.activeCount} active</td>
                     </tr>

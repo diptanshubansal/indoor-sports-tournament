@@ -14,6 +14,7 @@ import Dashboard from './pages/Dashboard';
 import Tournaments from './pages/Tournaments';
 import Participants from './pages/Participants';
 import GoogleSheetSync from './pages/GoogleSheetSync';
+import Management from './pages/Management';
 import Teams from './pages/Teams';
 import Attendance from './pages/Attendance';
 import Leaderboard from './pages/Leaderboard';
@@ -75,7 +76,7 @@ function App() {
                 }
               />
               <Route
-                path="/google-sheet-sync"
+                path="/google-sync"
                 element={
                   <ProtectedRoute allowedRoles={writeRoles}>
                     <ProtectedPage>
@@ -168,6 +169,16 @@ function App() {
               />
 
               {/* Admin/Super Admin Restricted */}
+              <Route
+                path="/management"
+                element={
+                  <ProtectedRoute allowedRoles={writeRoles}>
+                    <ProtectedPage>
+                      <Management />
+                    </ProtectedPage>
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/settings"
                 element={

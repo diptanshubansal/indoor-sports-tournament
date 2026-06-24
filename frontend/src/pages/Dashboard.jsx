@@ -136,9 +136,12 @@ const Dashboard = () => {
     <div className="space-y-8 fade-in">
       {/* Title section */}
       <div>
-        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">ICAI Sports Meet Bathinda</h1>
-        <p className="text-sm text-slate-500 dark:text-dark-400 mt-1.5">
-          Real-time metrics, participation distributions, and critical bulletin boards.
+        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">Indoor Sports</h1>
+        <p className="text-sm font-semibold text-primary-500 dark:text-primary-400 mt-1">
+          Hosted by Bathinda Branch of NIRC
+        </p>
+        <p className="text-xs text-slate-400 mt-1">
+          Venue: ICAI Bathinda Branch
         </p>
       </div>
 

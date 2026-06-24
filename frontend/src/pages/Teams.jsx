@@ -359,7 +359,7 @@ const Teams = () => {
                         >
                           <div>
                             <div className="font-bold">{player.name}</div>
-                            <div className="text-[10px] text-slate-400 mt-0.5">{player.collegeOrInstitute}</div>
+                            <div className="text-[10px] text-slate-450 dark:text-dark-500 mt-0.5">ID: {player.participantId}</div>
                           </div>
                           {isAssigned ? (
                             <Check className="w-4 h-4 text-primary-500 stroke-[3]" />

@@ -56,12 +56,11 @@ const generateTempPassword = () => {
 // @access  Private (All roles)
 router.get('/', protect, async (req, res) => {
   try {
-    const { search, gender, status, college } = req.query;
+    const { search, gender, status } = req.query;
     let query = {};
 
     if (gender) query.gender = gender;
     if (status) query.status = status;
-    if (college) query.collegeOrInstitute = { $regex: college, $options: 'i' };
     if (req.query.game) {
       query.enrolledGames = req.query.game;
     }

@@ -29,21 +29,16 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/participant-dashboard', label: 'My Dashboard', icon: LayoutDashboard, roles: ['participant'] },
-    { path: '/visitor-dashboard', label: 'My Dashboard', icon: LayoutDashboard, roles: ['visitor'] },
-    { path: '/tournaments', label: 'Tournaments', icon: Calendar, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
+    { path: '/tournaments', label: 'Tournament', icon: Calendar, roles: ['super_admin', 'admin', 'viewer'] },
     { path: '/participants', label: 'Participants', icon: Users, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/google-sheet-sync', label: 'Google Sheet Sync', icon: RefreshCw, roles: ['super_admin', 'admin'] },
-    { path: '/teams', label: 'Teams', icon: UsersRound, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
+    { path: '/leaderboard', label: 'Leaderboard', icon: Trophy, roles: ['super_admin', 'admin', 'viewer'] },
+    { path: '/rules', label: 'Rules & Regulations', icon: BookOpen, roles: ['super_admin', 'admin', 'viewer'] },
+    { path: '/announcements', label: 'Announcements', icon: Bell, roles: ['super_admin', 'admin', 'viewer'] },
     { path: '/attendance', label: 'Attendance', icon: ClipboardCheck, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/leaderboard', label: 'Leaderboard', icon: Trophy, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
-    { path: '/rules', label: 'Rules & Regulations', icon: BookOpen, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
-    { path: '/announcements', label: 'Announcements', icon: Bell, roles: ['super_admin', 'admin', 'viewer', 'visitor'] },
     { path: '/reports', label: 'Reports', icon: FileText, roles: ['super_admin', 'admin', 'viewer'] },
-    { path: '/committee', label: 'Committee Members', icon: Shield, roles: ['super_admin'] },
-    { path: '/audit-logs', label: 'Audit Logs', icon: FileText, roles: ['super_admin'] },
-    { path: '/settings', label: 'Settings', icon: Settings, roles: ['super_admin', 'admin'] },
-    { path: '/profile', label: 'Profile', icon: User, roles: ['super_admin', 'admin', 'viewer', 'participant', 'visitor'] },
+    { path: '/google-sync', label: 'Google Sync', icon: RefreshCw, roles: ['super_admin', 'admin'] },
+    { path: '/management', label: 'Management', icon: Settings, roles: ['super_admin', 'admin'] },
+    { path: '/audit-logs', label: 'Audit Logs', icon: Shield, roles: ['super_admin'] },
   ];
 
   const filteredItems = navItems.filter(item => item.roles.includes(user?.role));
@@ -59,8 +54,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         <div className="flex items-center gap-2 px-6 py-5 border-b border-slate-800">
           <Trophy className="w-7 h-7 text-primary-500 animate-bounce" />
           <div>
-            <h1 className="font-extrabold text-white text-lg tracking-tight leading-none">ICAI SPORTS</h1>
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Tournament Admin</span>
+            <h1 className="font-extrabold text-white text-sm tracking-tight leading-tight">Indoor Sports<br/>Tournament</h1>
           </div>
         </div>
 
@@ -90,8 +84,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       </div>
 
       {/* Sidebar Footer Profile */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950/40">
-        <div className="flex items-center gap-3 mb-4 px-2">
+      <div className="p-4 border-t border-slate-800 bg-slate-950/40 space-y-3">
+        <div className="flex items-center gap-3 px-2">
           <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold shadow-md shadow-primary-600/30">
             {user?.name?.charAt(0).toUpperCase() || 'U'}
           </div>
@@ -100,6 +94,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             <span className="text-xs text-slate-400 font-medium capitalize">{user?.role?.replace('_', ' ')}</span>
           </div>
         </div>
+        
+        <div className="px-3 py-2 bg-slate-900 border border-slate-850 rounded-xl text-[10px] text-slate-400 font-semibold leading-relaxed">
+          <div className="text-white">Developer: Diptanshu Bansal</div>
+          <div>M. 7009291467</div>
+        </div>
+
         <button
           onClick={handleLogout}
           className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-rose-600 hover:text-white text-slate-300 font-semibold py-2.5 px-4 rounded-xl transition-all duration-150 text-sm shadow-md"

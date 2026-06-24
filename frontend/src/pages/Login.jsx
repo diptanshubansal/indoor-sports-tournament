@@ -43,14 +43,14 @@ const Login = () => {
           <div className="w-14 h-14 bg-primary-500/10 border border-primary-500/25 rounded-2xl flex items-center justify-center text-primary-400 mb-4 shadow-lg">
             <Trophy className="w-8 h-8 text-primary-500 animate-pulse" />
           </div>
-          <h2 className="text-2xl font-extrabold text-white text-center">SPORTS MANAGEMENT</h2>
-          <p className="text-xs text-slate-400 mt-1.5 font-semibold tracking-wider uppercase">ICAI Bathinda Branch</p>
+          <h2 className="text-2xl font-extrabold text-white text-center">Indoor Sports Tournament</h2>
+          <p className="text-xs text-slate-400 mt-1.5 font-semibold tracking-wider uppercase">Bathinda Branch of NIRC of ICAI</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
           {/* User ID Field */}
           <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-widest mb-2">User ID</label>
+            <label className="block text-xs font-bold text-slate-300 uppercase tracking-widest mb-2">Username / User ID</label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
                 <User className="w-5 h-5" />
@@ -68,15 +68,7 @@ const Login = () => {
 
           {/* Password Field */}
           <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-widest">Password</label>
-              <Link
-                to="/forgot-password"
-                className="text-xs text-primary-400 hover:text-primary-300 font-semibold"
-              >
-                Forgot Password?
-              </Link>
-            </div>
+            <label className="block text-xs font-bold text-slate-300 uppercase tracking-widest mb-2">Password</label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
                 <Lock className="w-5 h-5" />
@@ -90,13 +82,21 @@ const Login = () => {
                 required
               />
             </div>
+            <div className="mt-2 text-right">
+              <Link
+                to="/forgot-password"
+                className="text-xs text-primary-400 hover:text-primary-300 font-semibold"
+              >
+                Forgot Password?
+              </Link>
+            </div>
           </div>
 
           {/* Submit Action */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary-600 hover:bg-primary-500 active:scale-[0.98] text-white font-bold py-3.5 px-4 rounded-xl transition-all duration-150 flex items-center justify-center gap-2 shadow-lg shadow-primary-600/30 text-sm mt-8 border border-primary-500/20"
+            className="w-full bg-primary-650 hover:bg-primary-700 active:scale-[0.98] text-white font-bold py-3.5 px-4 rounded-xl transition-all duration-150 flex items-center justify-center gap-2 shadow-lg shadow-primary-650/30 text-sm mt-8 border border-primary-500/20"
           >
             {loading ? (
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
