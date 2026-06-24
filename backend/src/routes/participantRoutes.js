@@ -5,6 +5,9 @@ const xlsx = require('xlsx');
 const Participant = require('../models/Participant');
 const User = require('../models/User');
 const Settings = require('../models/Settings');
+const Match = require('../models/Match');
+const Round = require('../models/Round');
+const TournamentGame = require('../models/TournamentGame');
 const { google } = require('googleapis');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/rbacMiddleware');
@@ -494,6 +497,47 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
       return res.status(404).json({ success: false, message: 'Participant record not found' });
     }
 
+    // Fetch participant matches
+    const participantMatches = await Match.find({
+      $or: [
+        { player1Id: playerID },
+        { player2Id: playerID }
+      ]
+    }).populate('roundId').populate('tournamentGameId');
+
+    // Compile dynamic matchInfo map by game name
+    const matchInfo = {};
+    for (const match of participantMatches) {
+      if (!match.tournamentGameId || !match.roundId) continue;
+      const gameName = match.tournamentGameId.gameName;
+      const opponentId = match.player1Id === playerID ? match.player2Id : match.player1Id;
+      
+      // Look up opponent name
+      let opponentName = 'TBD';
+      if (opponentId) {
+        const opponent = await Participant.findOne({ participantId: opponentId });
+        opponentName = opponent ? opponent.name : opponentId;
+      }
+
+      let matchStatus = 'Upcoming';
+      if (match.winnerId) {
+        matchStatus = match.winnerId === playerID ? 'Won' : 'Lost';
+      }
+
+      matchInfo[gameName] = {
+        roundNumber: match.roundId.roundNumber,
+        opponentId,
+        opponentName,
+        matchStatus,
+        score: match.score || '',
+        tournamentStatus: match.tournamentGameId.status,
+      };
+    }
+
+    // Find active tournament
+    const activeTournament = await Tournament.findOne({ isArchived: false });
+    const tournamentId = activeTournament ? activeTournament._id : null;
+
     res.json({
       success: true,
       data: {
@@ -505,7 +549,9 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
         enrolledGames: participant.enrolledGames || [],
         tournamentDetails: 'Indoor Sports Tournament',
         fixturesPlaceholder: 'My Fixtures: Not Scheduled Yet',
-        resultsPlaceholder: 'My Results: Pending'
+        resultsPlaceholder: 'My Results: Pending',
+        matchInfo,
+        tournamentId
       }
     });
   } catch (error) {

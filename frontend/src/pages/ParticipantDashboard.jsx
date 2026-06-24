@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { 
@@ -24,6 +25,7 @@ const getGameIcon = (gameName) => {
 
 const ParticipantDashboard = () => {
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -218,38 +220,82 @@ const ParticipantDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {games.map((game, index) => {
               const GameIcon = getGameIcon(game);
+              const match = data.matchInfo && data.matchInfo[game];
               return (
                 <div 
                   key={index} 
-                  className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group"
+                  className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group flex flex-col justify-between"
                 >
                   <div className="absolute right-0 top-0 w-14 h-14 bg-indigo-500/5 dark:bg-indigo-950/20 rounded-bl-3xl flex items-center justify-center text-indigo-500 dark:text-indigo-400">
                     <GameIcon className="w-5 h-5 opacity-60 group-hover:scale-110 transition-transform" />
                   </div>
                 
-                <div className="space-y-4">
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-extrabold text-slate-800 dark:text-white text-lg truncate pr-4">{game}</h3>
-                    <span className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border border-emerald-200/50 dark:border-emerald-800/30 flex items-center gap-1 shrink-0">
-                      <CheckCircle2 className="w-3 h-3" /> Enrolled
-                    </span>
+                  <div className="space-y-4 flex-1">
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-extrabold text-slate-800 dark:text-white text-lg truncate pr-4">{game}</h3>
+                      <span className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border border-emerald-200/50 dark:border-emerald-800/30 flex items-center gap-1 shrink-0">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Enrolled
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 bg-slate-50 dark:bg-dark-950 p-3 rounded-2xl border border-slate-100 dark:border-dark-900 text-xs">
+                      {match ? (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400 font-semibold">Current Round:</span>
+                            <span className="text-slate-800 dark:text-white font-bold">Round {match.roundNumber}</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                            <span className="text-slate-400 font-semibold">Opponent:</span>
+                            <span className="text-slate-850 dark:text-slate-200 font-bold truncate max-w-[100px]">{match.opponentName} ({match.opponentId})</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                            <span className="text-slate-400 font-semibold">Match Status:</span>
+                            <span className={`font-bold uppercase ${
+                              match.matchStatus === 'Won' ? 'text-emerald-600 dark:text-emerald-400' :
+                              match.matchStatus === 'Lost' ? 'text-rose-600 dark:text-rose-400' :
+                              'text-indigo-605 dark:text-indigo-400'
+                            }`}>{match.matchStatus}</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                            <span className="text-slate-400 font-semibold">Engine Status:</span>
+                            <span className="text-slate-550 dark:text-dark-400 font-bold">{match.tournamentStatus}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400 font-semibold">Fixture status:</span>
+                            <span className="text-slate-550 dark:text-dark-400 font-bold italic">Not Scheduled</span>
+                          </div>
+                          <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                            <span className="text-slate-400 font-semibold">Match Results:</span>
+                            <span className="text-slate-550 dark:text-dark-400 font-bold italic">Pending</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="space-y-2 bg-slate-50 dark:bg-dark-950 p-3 rounded-2xl border border-slate-100 dark:border-dark-900">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400 font-semibold">Fixture status</span>
-                      <span className="text-slate-500 dark:text-dark-400 font-bold italic">Not Scheduled</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-dark-850">
-                      <span className="text-slate-400 font-semibold">Match Results</span>
-                      <span className="text-slate-500 dark:text-dark-400 font-bold italic">Pending</span>
-                    </div>
+                  <div className="mt-4 pt-2">
+                    <button
+                      onClick={() => {
+                        if (data.tournamentId) {
+                          navigate(`/tournament-room/${data.tournamentId}`);
+                        } else {
+                          showToast('No active tournament event found.', 'info');
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-slate-50 dark:bg-dark-950 border border-slate-250 dark:border-dark-850 hover:bg-slate-100 dark:hover:bg-dark-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors"
+                    >
+                      <Trophy className="w-3.5 h-3.5 text-primary-500" />
+                      <span>Enter Game Bracket Room</span>
+                    </button>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
         )}
       </div>
 

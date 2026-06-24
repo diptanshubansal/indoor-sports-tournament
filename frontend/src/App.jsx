@@ -29,6 +29,7 @@ import ParticipantDashboard from './pages/ParticipantDashboard';
 import VisitorDashboard from './pages/VisitorDashboard';
 import ChangePassword from './pages/ChangePassword';
 import MyGames from './pages/MyGames';
+import TournamentRoom from './pages/TournamentRoom';
 
 function App() {
   const allRoles = ['super_admin', 'admin', 'viewer', 'visitor', 'participant'];
@@ -63,6 +64,16 @@ function App() {
                   <ProtectedRoute allowedRoles={commonRoles}>
                     <ProtectedPage>
                       <Tournaments />
+                    </ProtectedPage>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/tournament-room/:id"
+                element={
+                  <ProtectedRoute allowedRoles={allRoles}>
+                    <ProtectedPage>
+                      <TournamentRoom />
                     </ProtectedPage>
                   </ProtectedRoute>
                 }

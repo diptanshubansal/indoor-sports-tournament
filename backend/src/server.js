@@ -57,6 +57,7 @@ app.use('/api/audit-logs', require('./routes/auditRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/settings', require('./routes/settingsRoutes'));
 app.use('/api/visitors', require('./routes/visitorRoutes'));
+app.use('/api/tournament-engine', require('./routes/tournamentEngineRoutes'));
 
 
 // Basic Health Check Route

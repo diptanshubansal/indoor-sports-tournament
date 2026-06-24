@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { TableSkeleton } from '../components/Skeleton';
-import { Plus, Edit2, Archive, Trash2, Calendar, Search, Filter, X, Eye } from 'lucide-react';
+import { Plus, Edit2, Archive, Trash2, Calendar, Search, Filter, X, Eye, Trophy } from 'lucide-react';
 
 const Tournaments = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -260,38 +262,48 @@ const Tournaments = () => {
               </div>
 
               {/* Actions */}
-              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-dark-800/60 flex items-center justify-end gap-2">
-                {isEditable ? (
-                  <>
-                    <button
-                      onClick={() => handleOpenEdit(tourney)}
-                      className="p-2 hover:bg-slate-100 dark:hover:bg-dark-850 text-slate-500 dark:text-dark-400 hover:text-primary-500 rounded-lg transition-colors"
-                      title="Edit"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    {!tourney.isArchived && (
+              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-dark-800/60 flex items-center justify-between gap-2">
+                <button
+                  onClick={() => navigate(`/tournament-room/${tourney._id}`)}
+                  className="flex items-center gap-1.5 text-xs font-black text-primary-600 hover:text-primary-500 transition-colors uppercase tracking-wider bg-primary-50 dark:bg-primary-950/20 px-3 py-1.5 rounded-xl border border-primary-250/30"
+                >
+                  <Trophy className="w-4 h-4" />
+                  <span>Enter Room</span>
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {isEditable ? (
+                    <>
                       <button
-                        onClick={() => handleArchive(tourney._id)}
-                        className="p-2 hover:bg-slate-100 dark:hover:bg-dark-850 text-slate-500 dark:text-dark-400 hover:text-amber-500 rounded-lg transition-colors"
-                        title="Archive"
+                        onClick={() => handleOpenEdit(tourney)}
+                        className="p-2 hover:bg-slate-100 dark:hover:bg-dark-850 text-slate-500 dark:text-dark-400 hover:text-primary-500 rounded-lg transition-colors"
+                        title="Edit"
                       >
-                        <Archive className="w-4 h-4" />
+                        <Edit2 className="w-4 h-4" />
                       </button>
-                    )}
-                    <button
-                      onClick={() => handleDelete(tourney._id)}
-                      className="p-2 hover:bg-slate-100 dark:hover:bg-dark-850 text-slate-500 dark:text-dark-400 hover:text-rose-500 rounded-lg transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </>
-                ) : (
-                  <span className="text-[10px] text-slate-400 dark:text-dark-600 flex items-center gap-1.5 py-2">
-                    <Eye className="w-3.5 h-3.5" /> View Only
-                  </span>
-                )}
+                      {!tourney.isArchived && (
+                        <button
+                          onClick={() => handleArchive(tourney._id)}
+                          className="p-2 hover:bg-slate-100 dark:hover:bg-dark-850 text-slate-500 dark:text-dark-400 hover:text-amber-500 rounded-lg transition-colors"
+                          title="Archive"
+                        >
+                          <Archive className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(tourney._id)}
+                        className="p-2 hover:bg-slate-100 dark:hover:bg-dark-850 text-slate-500 dark:text-dark-400 hover:text-rose-500 rounded-lg transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 dark:text-dark-600 flex items-center gap-1.5 py-2">
+                      <Eye className="w-3.5 h-3.5" /> View Only
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           ))}
