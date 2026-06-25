@@ -25,7 +25,8 @@ const MyGames = () => {
   const { showToast } = useToast();
   const [games, setGames] = useState([]);
   const [matchInfo, setMatchInfo] = useState({});
-  const [tournament, setTournament] = useState(null);
+  const [gameTournaments, setGameTournaments] = useState({});
+  const [defaultTournament, setDefaultTournament] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,7 +37,8 @@ const MyGames = () => {
         if (response.data.success) {
           setGames(response.data.data.enrolledGames || response.data.data.games || []);
           setMatchInfo(response.data.data.matchInfo || {});
-          setTournament(response.data.data.tournament || null);
+          setGameTournaments(response.data.data.gameTournaments || {});
+          setDefaultTournament(response.data.data.tournament || null);
         }
       } catch (error) {
         showToast('Failed to fetch registered games', 'error');
@@ -80,6 +82,7 @@ const MyGames = () => {
           {games.map((game, index) => {
             const GameIcon = getGameIcon(game);
             const match = matchInfo[game];
+            const tournament = gameTournaments[game] || defaultTournament;
             return (
               <div 
                 key={index} 

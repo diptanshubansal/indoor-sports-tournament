@@ -107,15 +107,20 @@ const Tournaments = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...form,
+        registrationStartDate: form.registrationStartDate || form.startDate || defaultDateInput(),
+        registrationEndDate: form.registrationEndDate || form.endDate || form.startDate || defaultDateInput()
+      };
       if (editId) {
         // Edit API
-        const response = await api.put(`/tournaments/${editId}`, form);
+        const response = await api.put(`/tournaments/${editId}`, payload);
         if (response.data.success) {
           showToast('Tournament updated successfully!', 'success');
         }
       } else {
         // Create API
-        const response = await api.post('/tournaments', form);
+        const response = await api.post('/tournaments', payload);
         if (response.data.success) {
           showToast('Tournament created successfully!', 'success');
           // Initialize leaderboard entries for this tournament
@@ -267,10 +272,6 @@ const Tournaments = () => {
                     <span className="font-semibold text-slate-400">Rounds:</span>
                     <span>{new Date(tourney.startDate).toLocaleDateString()} - {new Date(tourney.endDate).toLocaleDateString()}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-slate-400">Registration:</span>
-                    <span>{new Date(tourney.registrationStartDate).toLocaleDateString()} - {new Date(tourney.registrationEndDate).toLocaleDateString()}</span>
-                  </div>
                 </div>
               </div>
 
@@ -413,31 +414,6 @@ const Tournaments = () => {
                     type="date"
                     name="endDate"
                     value={form.endDate}
-                    onChange={handleFormChange}
-                    className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">Registration Start</label>
-                  <input
-                    type="date"
-                    name="registrationStartDate"
-                    value={form.registrationStartDate}
-                    onChange={handleFormChange}
-                    className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">Registration End</label>
-                  <input
-                    type="date"
-                    name="registrationEndDate"
-                    value={form.registrationEndDate}
                     onChange={handleFormChange}
                     className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500"
                     required

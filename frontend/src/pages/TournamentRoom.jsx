@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -13,12 +13,13 @@ import {
 const TournamentRoom = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { showToast } = useToast();
 
   const [tournament, setTournament] = useState(null);
   const [games, setGames] = useState([]);
-  const [selectedGame, setSelectedGame] = useState('Chess');
+  const [selectedGame, setSelectedGame] = useState(searchParams.get('game') || 'Chess');
   const [gameDetail, setGameDetail] = useState(null);
   const [bracket, setBracket] = useState([]);
   const [eligiblePlayers, setEligiblePlayers] = useState([]);
@@ -56,13 +57,27 @@ const TournamentRoom = () => {
         setTournament(tourneyRes.data.data);
       }
 
-      // Check enrollment if participant
+      // Fetch or associate games
+      const gamesRes = await api.get(`/tournament-engine/games/${id}`);
+      let resolvedGame = selectedGame;
+      if (gamesRes.data.success) {
+        setGames(gamesRes.data.data);
+        if (gamesRes.data.data.length > 0) {
+          const hasSelectedGame = gamesRes.data.data.some(g => g.gameName === selectedGame);
+          if (!hasSelectedGame) {
+            resolvedGame = gamesRes.data.data[0].gameName;
+            setSelectedGame(resolvedGame);
+          }
+        }
+      }
+
+      // Check enrollment if participant (using the resolved game name)
       if (isParticipant) {
         // Fetch participant detail using current user ID
         const partDashboardRes = await api.get('/participants/my-dashboard');
         if (partDashboardRes.data.success) {
           const participant = partDashboardRes.data.data;
-          const isEnrolled = participant.enrolledGames.includes(selectedGame);
+          const isEnrolled = participant.enrolledGames.includes(resolvedGame);
           if (!isEnrolled) {
             setEnrollmentError(true);
             setLoading(false);
@@ -72,19 +87,8 @@ const TournamentRoom = () => {
         }
       }
 
-      // Fetch or associate games
-      const gamesRes = await api.get(`/tournament-engine/games/${id}`);
       if (gamesRes.data.success) {
-        setGames(gamesRes.data.data);
-        let activeGame = selectedGame;
-        if (gamesRes.data.data.length > 0) {
-          const hasSelectedGame = gamesRes.data.data.some(g => g.gameName === selectedGame);
-          if (!hasSelectedGame) {
-            activeGame = gamesRes.data.data[0].gameName;
-            setSelectedGame(activeGame);
-          }
-        }
-        const matchedGame = gamesRes.data.data.find(g => g.gameName === activeGame);
+        const matchedGame = gamesRes.data.data.find(g => g.gameName === resolvedGame);
         if (matchedGame) {
           setGameDetail(matchedGame);
           const eligibleRes = await api.get(`/tournament-engine/games/${matchedGame._id}/eligible-players`);
@@ -322,7 +326,7 @@ const TournamentRoom = () => {
       {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <span className="text-[10px] font-black uppercase text-primary-500 tracking-wider">Tournament - Chess Engine / Chess Fixtures</span>
+          <span className="text-[10px] font-black uppercase text-primary-500 tracking-wider">Tournament - {selectedGame} Engine / {selectedGame} Fixtures</span>
           <h1 className="text-2xl font-black text-slate-900 dark:text-white mt-1">{tournament?.name}</h1>
           <p className="text-xs text-slate-400 mt-0.5">
             Venue: {tournament?.venue} | Starts: {tournament?.startDate ? new Date(tournament.startDate).toLocaleString() : 'Not set'}
@@ -331,7 +335,7 @@ const TournamentRoom = () => {
 
         <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-2xl px-4 py-3 shadow-sm">
           <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Active Game</div>
-          <div className="text-sm font-black text-slate-850 dark:text-white">Chess</div>
+          <div className="text-sm font-black text-slate-850 dark:text-white">{selectedGame}</div>
         </div>
       </div>
 
@@ -378,33 +382,68 @@ const TournamentRoom = () => {
 
             {/* Quick status transitions for Admins */}
             {isWritable && (
-              <div className="flex flex-wrap gap-2 items-center">
-                {gameDetail.status === 'Draft' && (
+              <div className="flex flex-wrap gap-2 items-center border border-slate-100 dark:border-dark-850 bg-slate-50/50 dark:bg-dark-950/20 p-2 rounded-2xl">
+                {/* Open for Room Entry */}
+                {(gameDetail.status === 'Draft' || gameDetail.status === 'Registration Closed' || gameDetail.status === 'Tournament Completed') && (
                   <button
                     onClick={() => handleStatusChange('Registration Open')}
-                    className="bg-slate-850 hover:bg-slate-950 text-white font-bold py-2 px-3 rounded-xl text-xs transition-all active:scale-95"
+                    className="bg-indigo-650 hover:bg-indigo-700 text-white font-bold py-2 px-3.5 rounded-xl text-xs transition-all active:scale-95 shadow-sm"
                   >
-                    Open for Registered Participants
+                    Open Game for Room Entry
                   </button>
                 )}
+
+                {/* Close Room Entry */}
                 {gameDetail.status === 'Registration Open' && (
                   <button
                     onClick={() => handleStatusChange('Registration Closed')}
-                    className="bg-slate-850 hover:bg-slate-950 text-white font-bold py-2 px-3 rounded-xl text-xs transition-all active:scale-95"
+                    className="bg-slate-700 hover:bg-slate-800 text-white font-bold py-2 px-3.5 rounded-xl text-xs transition-all active:scale-95 shadow-sm"
                   >
-                    Start Tournament
+                    Close Room Entry
                   </button>
                 )}
-                {gameDetail.status === 'Registration Closed' && (
+
+                {/* Start Game */}
+                {(gameDetail.status === 'Registration Open' || gameDetail.status === 'Registration Closed') && (
+                  <button
+                    onClick={() => handleStatusChange('Tournament Running')}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3.5 rounded-xl text-xs transition-all active:scale-95 shadow-sm"
+                  >
+                    Start Game
+                  </button>
+                )}
+
+                {/* Complete Game */}
+                {gameDetail.status === 'Tournament Running' && (
+                  <button
+                    onClick={() => handleStatusChange('Tournament Completed')}
+                    className="bg-rose-600 hover:bg-rose-500 text-white font-bold py-2 px-3.5 rounded-xl text-xs transition-all active:scale-95 shadow-sm"
+                  >
+                    Complete Game
+                  </button>
+                )}
+
+                {/* Reopen Room Entry option during active game */}
+                {gameDetail.status === 'Tournament Running' && (
+                  <button
+                    onClick={() => handleStatusChange('Registration Open')}
+                    className="bg-slate-650 hover:bg-slate-700 text-white font-bold py-2 px-3.5 rounded-xl text-xs transition-all active:scale-95 shadow-sm"
+                  >
+                    Reopen Room Entry
+                  </button>
+                )}
+
+                {/* Game specific generation actions */}
+                {selectedGame === 'Chess' && gameDetail.status === 'Registration Closed' && (
                   <button
                     onClick={handleGenerateFixtures}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-xl text-xs shadow-md transition-all active:scale-95 flex items-center gap-1"
+                    className="bg-teal-600 hover:bg-teal-500 text-white font-bold py-2 px-3.5 rounded-xl text-xs shadow-md transition-all active:scale-95 flex items-center gap-1"
                   >
                     <Play className="w-3.5 h-3.5" />
                     <span>Generate Chess Fixtures</span>
                   </button>
                 )}
-                {canGenerateNextRound && (
+                {selectedGame === 'Chess' && canGenerateNextRound && (
                   <button
                     onClick={handleGenerateNextRound}
                     className="bg-indigo-650 hover:bg-indigo-600 text-white font-bold py-2 px-3.5 rounded-xl text-xs shadow-md transition-all active:scale-95 flex items-center gap-1"
@@ -419,9 +458,9 @@ const TournamentRoom = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-[240px,1fr] gap-6">
             <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-5 shadow-sm">
-              <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Chess Players</div>
+              <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total {selectedGame} Players</div>
               <div className="text-4xl font-black text-slate-900 dark:text-white mt-2">{eligiblePlayers.length}</div>
-              {isWritable && gameDetail.status === 'Registration Closed' && bracket.length === 0 && (
+              {isWritable && selectedGame === 'Chess' && gameDetail.status === 'Registration Closed' && bracket.length === 0 && (
                 <button
                   onClick={handleGenerateFixtures}
                   disabled={actionLoading}
@@ -434,12 +473,12 @@ const TournamentRoom = () => {
             </div>
             <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3 mb-3">
-                <h3 className="text-sm font-black text-slate-850 dark:text-white">Eligible Chess Players</h3>
-                <span className="text-[10px] font-bold uppercase text-slate-400">enrolledGames includes Chess</span>
+                <h3 className="text-sm font-black text-slate-850 dark:text-white">Eligible {selectedGame} Players</h3>
+                <span className="text-[10px] font-bold uppercase text-slate-400">enrolledGames includes {selectedGame}</span>
               </div>
               {eligiblePlayers.length === 0 ? (
                 <div className="text-xs text-slate-400 py-6 text-center border border-dashed border-slate-200 dark:border-dark-800 rounded-2xl">
-                  No active Chess participants found.
+                  No active {selectedGame} participants found.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">

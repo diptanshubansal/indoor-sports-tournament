@@ -70,7 +70,7 @@ const ParticipantDashboard = () => {
     );
   }
 
-  const { participantId, name, phone, email, games, tournamentDetails, fixturesPlaceholder, resultsPlaceholder, tournament } = data;
+  const { participantId, name, phone, email, games, tournamentDetails, fixturesPlaceholder, resultsPlaceholder, tournament, gameTournaments } = data;
 
   return (
     <div className="space-y-8 fade-in">
@@ -109,7 +109,7 @@ const ParticipantDashboard = () => {
 
         {games.length === 0 ? (
           <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl py-12 text-center shadow-sm">
-            <Activity className="w-12 h-12 mx-auto text-slate-300 dark:text-dark-850 mb-3" />
+            <Activity className="w-12 h-12 mx-auto text-slate-350 dark:text-dark-850 mb-3" />
             <h3 className="text-base font-bold text-slate-700 dark:text-white">No Registered Games</h3>
             <p className="text-xs text-slate-400 max-w-xs mx-auto mt-1">Contact the administrator to enroll in your tournaments.</p>
           </div>
@@ -118,6 +118,7 @@ const ParticipantDashboard = () => {
             {games.map((game, index) => {
               const GameIcon = getGameIcon(game);
               const match = data.matchInfo && data.matchInfo[game];
+              const gameTournament = (gameTournaments && gameTournaments[game]) || tournament;
               return (
                 <div 
                   key={index} 
@@ -136,19 +137,19 @@ const ParticipantDashboard = () => {
                     </div>
 
                     <div className="space-y-2 bg-slate-50 dark:bg-dark-950 p-3 rounded-2xl border border-slate-100 dark:border-dark-900 text-xs">
-                      {tournament && (
+                      {gameTournament && (
                         <div className="pb-2 mb-2 border-b border-slate-200 dark:border-dark-850 space-y-1 text-slate-500 dark:text-dark-400">
                           <div className="flex items-center gap-1.5">
                             <Calendar className="w-3.5 h-3.5 text-primary-500 shrink-0" />
                             <span className="font-semibold text-[10px] uppercase tracking-wider">Schedule:</span>
                             <span className="text-slate-800 dark:text-white font-bold">
-                              {new Date(tournament.startDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                              {new Date(gameTournament.startDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <MapPin className="w-3.5 h-3.5 text-primary-500 shrink-0" />
                             <span className="font-semibold text-[10px] uppercase tracking-wider">Venue:</span>
-                            <span className="text-slate-800 dark:text-white font-bold truncate max-w-[170px]">{tournament.venue}</span>
+                            <span className="text-slate-800 dark:text-white font-bold truncate max-w-[170px]">{gameTournament.venue}</span>
                           </div>
                         </div>
                       )}
@@ -200,8 +201,9 @@ const ParticipantDashboard = () => {
                   <div className="mt-4 pt-2">
                     <button
                       onClick={() => {
-                        if (data.tournamentId) {
-                          navigate(`/tournament-room/${data.tournamentId}`);
+                        const targetId = gameTournament?.tournamentId || data.tournamentId;
+                        if (targetId) {
+                          navigate(`/tournament-room/${targetId}?game=${game}`);
                         } else {
                           showToast('No active tournament event found.', 'info');
                         }

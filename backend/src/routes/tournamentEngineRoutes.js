@@ -97,7 +97,6 @@ router.get('/game-details/:id', protect, async (req, res) => {
     if (!game) {
       return res.status(404).json({ success: false, message: 'Tournament game not found' });
     }
-    if (!assertChessGame(game, res)) return;
     res.json({ success: true, data: game });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -105,7 +104,7 @@ router.get('/game-details/:id', protect, async (req, res) => {
 });
 
 // @route   GET /api/tournament-engine/games/:id/eligible-players
-// @desc    Get active Chess participants eligible for this tournament game
+// @desc    Get active participants eligible for this tournament game
 // @access  Private (All roles)
 router.get('/games/:id/eligible-players', protect, async (req, res) => {
   try {
@@ -113,10 +112,9 @@ router.get('/games/:id/eligible-players', protect, async (req, res) => {
     if (!game) {
       return res.status(404).json({ success: false, message: 'Tournament game not found' });
     }
-    if (!assertChessGame(game, res)) return;
 
     const participants = await Participant.find({
-      enrolledGames: 'Chess',
+      enrolledGames: game.gameName,
       status: 'active',
     }).sort({ participantId: 1 });
 
@@ -140,7 +138,6 @@ router.put('/games/:id/status', protect, authorize('super_admin', 'admin'), asyn
     if (!game) {
       return res.status(404).json({ success: false, message: 'Tournament game not found' });
     }
-    if (!assertChessGame(game, res)) return;
 
     const oldStatus = game.status;
     game.status = status;
@@ -404,7 +401,11 @@ router.get('/games/:id/bracket', protect, async (req, res) => {
     if (!game) {
       return res.status(404).json({ success: false, message: 'Tournament game not found' });
     }
-    if (!assertChessGame(game, res)) return;
+    
+    // For non-Chess games in Phase 4A, return an empty bracket tree instead of throwing an error
+    if (game.gameName !== 'Chess') {
+      return res.json({ success: true, data: [] });
+    }
 
     const rounds = await Round.find({ tournamentGameId: req.params.id }).sort({ roundNumber: 1 });
     const matches = await Match.find({ tournamentGameId: req.params.id }).sort({ matchNumber: 1, createdAt: 1 });
