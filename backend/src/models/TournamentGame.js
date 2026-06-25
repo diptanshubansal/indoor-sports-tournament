@@ -13,8 +13,20 @@ const tournamentGameSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Draft', 'Registration Open', 'Registration Closed', 'Tournament Running', 'Tournament Completed'],
+      enum: ['Draft', 'Registration Open', 'Registration Closed', 'Tournament Running', 'Tournament Completed', 'Initialized'],
       default: 'Draft',
+    },
+    totalPlayers: {
+      type: Number,
+      default: 0,
+    },
+    currentRound: {
+      type: Number,
+      default: 1,
+    },
+    currentStage: {
+      type: String,
+      default: 'Initialized',
     },
     champion: {
       type: String,

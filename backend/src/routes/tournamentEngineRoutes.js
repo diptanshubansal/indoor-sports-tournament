@@ -52,27 +52,103 @@ router.post('/games', protect, authorize('super_admin', 'admin'), async (req, re
       return res.status(400).json({ success: false, message: 'Only Chess engine is available in Phase 4A' });
     }
 
-    // Check if association already exists
-    let tourneyGame = await TournamentGame.findOne({ tournamentId, gameName });
-    if (tourneyGame) {
-      return res.json({ success: true, data: tourneyGame });
+    // Step 1: Verify an active tournament exists
+    const tournament = await Tournament.findById(tournamentId);
+    if (!tournament || tournament.isArchived) {
+      await logAudit({
+        req,
+        action: 'create',
+        details: `Chess tournament engine initialization failed: No active tournament found for ID: ${tournamentId}`,
+      });
+      return res.status(400).json({ success: false, message: 'No active tournament found.' });
     }
 
-    tourneyGame = await TournamentGame.create({
-      tournamentId,
-      gameName,
-      status: 'Draft'
+    // Step 2: Verify tournament status is "Tournament Running"
+    if (tournament.status !== 'Tournament Running') {
+      await logAudit({
+        req,
+        action: 'create',
+        details: `Chess tournament engine initialization failed: Tournament not started. Status: ${tournament.status}, ID: ${tournamentId}`,
+      });
+      return res.status(400).json({ success: false, message: 'Tournament has not started.' });
+    }
+
+    // Check if engine is already initialized
+    let tourneyGame = await TournamentGame.findOne({ tournamentId, gameName });
+    if (tourneyGame && tourneyGame.status !== 'Draft') {
+      await logAudit({
+        req,
+        action: 'create',
+        details: `Chess tournament engine initialization failed: Engine already initialized. Status: ${tourneyGame.status}, ID: ${tournamentId}`,
+      });
+      return res.status(400).json({ success: false, message: 'Engine already initialized' });
+    }
+
+    // Step 3: Fetch all participants whose enrolledGames includes "Chess" AND registration is approved (status is active)
+    const participants = await Participant.find({
+      enrolledGames: 'Chess',
+      status: 'active'
     });
+
+    // Step 4: Validate minimum participants
+    if (participants.length === 0) {
+      await logAudit({
+        req,
+        action: 'create',
+        details: `Chess tournament engine initialization failed: No Chess participants found. Tournament: ${tournamentId}`,
+      });
+      return res.status(400).json({ success: false, message: 'No Chess participants' });
+    }
+    if (participants.length < 2) {
+      await logAudit({
+        req,
+        action: 'create',
+        details: `Chess tournament engine initialization failed: Minimum 2 Chess participants required. Count: ${participants.length}, Tournament: ${tournamentId}`,
+      });
+      return res.status(400).json({ success: false, message: 'Minimum 2 Chess participants required.' });
+    }
+
+    // Step 5 & 6: Create or update Chess Tournament Engine record and store fields
+    if (!tourneyGame) {
+      tourneyGame = new TournamentGame({
+        tournamentId,
+        gameName: 'Chess'
+      });
+    }
+
+    tourneyGame.status = 'Initialized';
+    tourneyGame.totalPlayers = participants.length;
+    tourneyGame.currentRound = 1;
+    tourneyGame.currentStage = 'Initialized';
+    await tourneyGame.save();
 
     await logAudit({
       req,
       action: 'create',
-      details: `Associated game '${gameName}' with tournament ID: ${tournamentId}`,
+      details: `Chess tournament engine initialized successfully. Total players: ${participants.length}. Tournament: ${tournamentId}`,
     });
 
-    res.status(201).json({ success: true, data: tourneyGame });
+    // Step 7: Return success
+    res.status(200).json({
+      success: true,
+      message: 'Chess Engine Initialized Successfully',
+      data: tourneyGame
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    if (error.name === 'CastError') {
+      await logAudit({
+        req,
+        action: 'create',
+        details: `Chess tournament engine initialization failed: Tournament not found (invalid ID). Tournament: ${req.body.tournamentId}`,
+      });
+      return res.status(400).json({ success: false, message: 'Tournament not found' });
+    }
+    await logAudit({
+      req,
+      action: 'create',
+      details: `Chess tournament engine initialization failed: Database error (${error.message}). Tournament: ${req.body.tournamentId}`,
+    });
+    res.status(500).json({ success: false, message: 'Database error' });
   }
 });
 
@@ -934,12 +1010,10 @@ router.post('/chess/generate-fixtures', protect, authorize('super_admin', 'admin
 
     let game = await TournamentGame.findOne({ tournamentId, gameName: 'Chess' });
     if (!game) {
-      game = await TournamentGame.create({
-        tournamentId,
-        gameName: 'Chess',
-        status: 'Draft',
-        byeHistory: []
-      });
+      return res.status(400).json({ success: false, message: 'Chess engine not initialized. Please initialize the engine first.' });
+    }
+    if (game.status !== 'Initialized' && game.status !== 'Tournament Running') {
+      return res.status(400).json({ success: false, message: 'Chess engine must be initialized before generating fixtures.' });
     }
 
     const participants = await Participant.find({

@@ -140,11 +140,11 @@ const TournamentRoom = () => {
         gameName: selectedGame
       });
       if (res.data.success) {
-        showToast(`Initialized ${selectedGame} tournament space!`, 'success');
+        showToast('Chess Engine Initialized Successfully', 'success');
         fetchData();
       }
     } catch (err) {
-      showToast('Initialization failed', 'error');
+      showToast(err.response?.data?.message || 'Initialization Failed', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -368,7 +368,7 @@ const TournamentRoom = () => {
       </div>
 
       {/* Initialize / Missing space placeholder */}
-      {!gameDetail ? (
+      {!gameDetail || gameDetail.status === 'Draft' ? (
         <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl py-16 text-center shadow-sm max-w-xl mx-auto space-y-4">
           <Swords className="w-12 h-12 text-slate-350 dark:text-dark-850 mx-auto" />
           <div className="space-y-1">
@@ -488,7 +488,7 @@ const TournamentRoom = () => {
             <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-5 shadow-sm">
               <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total {selectedGame} Players</div>
               <div className="text-4xl font-black text-slate-900 dark:text-white mt-2">{eligiblePlayers.length}</div>
-              {isWritable && selectedGame === 'Chess' && gameDetail.status === 'Registration Closed' && bracket.length === 0 && (
+              {isWritable && selectedGame === 'Chess' && (gameDetail.status === 'Registration Closed' || gameDetail.status === 'Initialized') && bracket.length === 0 && (
                 <button
                   onClick={handleGenerateFixtures}
                   disabled={actionLoading}
@@ -545,7 +545,44 @@ const TournamentRoom = () => {
           )}
 
           {/* Bracket / Rounds Layout */}
-          {bracket.length === 0 ? (
+          {selectedGame === 'Chess' && gameDetail.status === 'Initialized' ? (
+            <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-6 shadow-sm space-y-6 max-w-2xl mx-auto">
+              <div className="flex items-center gap-3 border-b border-slate-100 dark:border-dark-850 pb-4">
+                <Settings className="w-5 h-5 text-indigo-500" />
+                <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">Chess Engine Status Details</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 dark:bg-dark-950 p-4 rounded-2xl border border-slate-100 dark:border-dark-850">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Chess Engine Status</div>
+                  <div className="text-sm font-black text-slate-850 dark:text-white mt-1">Initialized</div>
+                </div>
+                <div className="bg-slate-50 dark:bg-dark-950 p-4 rounded-2xl border border-slate-100 dark:border-dark-850">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Players Registered</div>
+                  <div className="text-sm font-black text-slate-850 dark:text-white mt-1">{gameDetail.totalPlayers || eligiblePlayers.length}</div>
+                </div>
+                <div className="bg-slate-50 dark:bg-dark-950 p-4 rounded-2xl border border-slate-100 dark:border-dark-850">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Current Round</div>
+                  <div className="text-sm font-black text-slate-850 dark:text-white mt-1">Round 1</div>
+                </div>
+                <div className="bg-slate-50 dark:bg-dark-950 p-4 rounded-2xl border border-slate-100 dark:border-dark-850">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fixtures</div>
+                  <div className="text-sm font-black text-slate-855 dark:text-white mt-1">Not Generated</div>
+                </div>
+              </div>
+              {isWritable && (
+                <div className="pt-2 text-center">
+                  <button
+                    onClick={handleGenerateFixtures}
+                    disabled={actionLoading}
+                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-6 rounded-xl text-xs shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 animate-pulse"
+                  >
+                    <Play className="w-3.5 h-3.5" />
+                    <span>Generate Round 1 Fixtures</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : bracket.length === 0 ? (
             <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl py-12 text-center text-slate-400">
               <HelpCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p className="text-xs font-semibold">No rounds created. Start the tournament to generate bracket rounds.</p>
