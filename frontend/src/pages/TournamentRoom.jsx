@@ -349,6 +349,24 @@ const TournamentRoom = () => {
     );
   }
 
+  if (selectedGame !== 'Chess') {
+    return (
+      <div className="max-w-2xl mx-auto py-16 text-center bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl shadow-sm space-y-4">
+        <Swords className="w-12 h-12 mx-auto text-indigo-500 mb-2 animate-bounce" />
+        <h3 className="text-lg font-black text-slate-800 dark:text-white">{selectedGame} Tournament Room</h3>
+        <p className="text-xs text-slate-455 dark:text-dark-500 max-w-sm mx-auto leading-relaxed">
+          Coming Soon / Not Started
+        </p>
+        <button
+          onClick={() => navigate(-1)}
+          className="mt-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs"
+        >
+          Go Back
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 fade-in pb-12">
       {/* Header section */}
