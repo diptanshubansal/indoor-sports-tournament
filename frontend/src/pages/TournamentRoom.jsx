@@ -26,6 +26,8 @@ const TournamentRoom = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [enrollmentError, setEnrollmentError] = useState(false);
+  const [championName, setChampionName] = useState(null);
+  const [runnerUpName, setRunnerUpName] = useState(null);
 
   // Override Form states
   const [showOverrideModal, setShowOverrideModal] = useState(false);
@@ -91,19 +93,32 @@ const TournamentRoom = () => {
         const matchedGame = gamesRes.data.data.find(g => g.gameName === resolvedGame);
         if (matchedGame) {
           setGameDetail(matchedGame);
-          const eligibleRes = await api.get(`/tournament-engine/games/${matchedGame._id}/eligible-players`);
+          const eligibleUrl = resolvedGame === 'Chess'
+            ? `/tournament-engine/chess/participants`
+            : `/tournament-engine/games/${matchedGame._id}/eligible-players`;
+          const eligibleRes = await api.get(eligibleUrl);
           if (eligibleRes.data.success) {
             setEligiblePlayers(eligibleRes.data.data);
           }
           // Fetch bracket
-          const bracketRes = await api.get(`/tournament-engine/games/${matchedGame._id}/bracket`);
+          const bracketUrl = resolvedGame === 'Chess'
+            ? `/tournament-engine/chess/bracket/${id}`
+            : `/tournament-engine/games/${matchedGame._id}/bracket`;
+          const bracketRes = await api.get(bracketUrl);
           if (bracketRes.data.success) {
-            setBracket(bracketRes.data.data);
+            const bracketData = resolvedGame === 'Chess' ? bracketRes.data.data.rounds : bracketRes.data.data;
+            setBracket(bracketData);
+            if (resolvedGame === 'Chess') {
+              setChampionName(bracketRes.data.data.championName);
+              setRunnerUpName(bracketRes.data.data.runnerUpName);
+            }
           }
         } else {
           setGameDetail(null);
           setBracket([]);
           setEligiblePlayers([]);
+          setChampionName(null);
+          setRunnerUpName(null);
         }
       }
     } catch (error) {
@@ -157,7 +172,11 @@ const TournamentRoom = () => {
     if (!gameDetail) return;
     try {
       setActionLoading(true);
-      const res = await api.post(`/tournament-engine/games/${gameDetail._id}/generate-fixtures`);
+      const url = selectedGame === 'Chess'
+        ? `/tournament-engine/chess/generate-fixtures`
+        : `/tournament-engine/games/${gameDetail._id}/generate-fixtures`;
+      const payload = selectedGame === 'Chess' ? { tournamentId: id } : {};
+      const res = await api.post(url, payload);
       if (res.data.success) {
         showToast('Knockout fixtures generated successfully!', 'success');
         fetchData();
@@ -173,7 +192,13 @@ const TournamentRoom = () => {
     if (!gameDetail) return;
     try {
       setActionLoading(true);
-      const res = await api.post(`/tournament-engine/games/${gameDetail._id}/next-round`);
+      const url = selectedGame === 'Chess'
+        ? `/tournament-engine/chess/generate-next-round`
+        : `/tournament-engine/games/${gameDetail._id}/next-round`;
+      const payload = selectedGame === 'Chess'
+        ? { tournamentId: id, currentRoundNumber: latestRound?.roundNumber || 1 }
+        : {};
+      const res = await api.post(url, payload);
       if (res.data.success) {
         showToast(res.data.message || 'Next round fixtures generated!', 'success');
         fetchData();
@@ -197,17 +222,20 @@ const TournamentRoom = () => {
     if (!selectedMatch) return;
     try {
       setActionLoading(true);
-      const res = await api.post(`/tournament-engine/matches/${selectedMatch._id}/winner`, {
-        winnerId,
-        score: matchScore
-      });
+      const url = selectedGame === 'Chess'
+        ? `/tournament-engine/chess/match/${selectedMatch._id}/winner`
+        : `/tournament-engine/matches/${selectedMatch._id}/winner`;
+      const payload = selectedGame === 'Chess'
+        ? { winnerParticipantId: winnerId, score: matchScore }
+        : { winnerId, score: matchScore };
+      const res = await api.post(url, payload);
       if (res.data.success) {
         showToast('Winner recorded successfully!', 'success');
         setWinnerModalOpen(false);
         fetchData();
       }
     } catch (err) {
-      showToast('Failed to save match result', 'error');
+      showToast(err.response?.data?.message || 'Failed to save match result', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -506,11 +534,11 @@ const TournamentRoom = () => {
               <div className="flex gap-6 shrink-0">
                 <div className="text-center bg-white/10 px-4 py-2 rounded-2xl border border-white/20">
                   <div className="text-[10px] font-black uppercase tracking-wider text-yellow-100">Gold Champion</div>
-                  <div className="text-sm font-extrabold mt-0.5">{gameDetail.champion || 'TBD'}</div>
+                  <div className="text-sm font-extrabold mt-0.5">{championName || gameDetail.champion || 'TBD'}</div>
                 </div>
                 <div className="text-center bg-white/10 px-4 py-2 rounded-2xl border border-white/20">
                   <div className="text-[10px] font-black uppercase tracking-wider text-slate-100">Silver Runner-Up</div>
-                  <div className="text-sm font-extrabold mt-0.5">{gameDetail.runnerUp || 'TBD'}</div>
+                  <div className="text-sm font-extrabold mt-0.5">{runnerUpName || gameDetail.runnerUp || 'TBD'}</div>
                 </div>
               </div>
             </div>

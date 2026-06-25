@@ -27,6 +27,7 @@ const ParticipantDashboard = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [chessStatus, setChessStatus] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,6 +37,15 @@ const ParticipantDashboard = () => {
         const response = await api.get('/participants/my-dashboard');
         if (response.data.success) {
           setData(response.data.data);
+        }
+
+        try {
+          const chessRes = await api.get('/tournament-engine/chess/my-status');
+          if (chessRes.data.success) {
+            setChessStatus(chessRes.data.data);
+          }
+        } catch (err) {
+          console.error('Failed to fetch Chess status:', err);
         }
       } catch (error) {
         showToast('Failed to fetch dashboard records', 'error');
@@ -117,6 +127,7 @@ const ParticipantDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {games.map((game, index) => {
               const GameIcon = getGameIcon(game);
+              const isChess = game === 'Chess';
               const match = data.matchInfo && data.matchInfo[game];
               const gameTournament = (gameTournaments && gameTournaments[game]) || tournament;
               return (
@@ -154,7 +165,51 @@ const ParticipantDashboard = () => {
                         </div>
                       )}
 
-                      {match ? (
+                      {isChess && chessStatus ? (
+                        <>
+                          {chessStatus.currentRound > 0 ? (
+                            <>
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-400 font-semibold">Current Round:</span>
+                                <span className="text-slate-800 dark:text-white font-bold">Round {chessStatus.currentRound}</span>
+                              </div>
+                              <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                                <span className="text-slate-400 font-semibold">Opponent:</span>
+                                <span className="text-slate-850 dark:text-slate-200 font-bold truncate max-w-[120px]">
+                                  {chessStatus.byeStatus !== 'No Bye' ? 'None (Bye)' : chessStatus.opponent || 'TBD'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                                <span className="text-slate-400 font-semibold">Match Status:</span>
+                                <span className={`font-bold uppercase ${
+                                  ['Completed'].includes(chessStatus.matchStatus) ? 'text-emerald-600 dark:text-emerald-400' :
+                                  chessStatus.matchStatus === 'Bye' ? 'text-indigo-605 dark:text-indigo-400' :
+                                  'text-indigo-605 dark:text-indigo-400'
+                                }`}>{chessStatus.matchStatus}</span>
+                              </div>
+                              <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                                <span className="text-slate-400 font-semibold">Result Status:</span>
+                                <span className={`font-bold ${
+                                  ['Champion', 'Won', 'Advanced'].includes(chessStatus.resultStatus) ? 'text-emerald-600 dark:text-emerald-400' :
+                                  ['Eliminated', 'Runner-Up'].includes(chessStatus.resultStatus) ? 'text-rose-600 dark:text-rose-400' :
+                                  'text-slate-550 dark:text-dark-400'
+                                }`}>{chessStatus.byeStatus !== 'No Bye' ? chessStatus.byeStatus : chessStatus.resultStatus}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <span className="text-slate-400 font-semibold">Fixture status:</span>
+                                <span className="text-slate-550 dark:text-dark-400 font-bold italic">Not Scheduled</span>
+                              </div>
+                              <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                                <span className="text-slate-400 font-semibold">Match Results:</span>
+                                <span className="text-slate-550 dark:text-dark-400 font-bold italic">Pending</span>
+                              </div>
+                            </>
+                          )}
+                        </>
+                      ) : match ? (
                         <>
                           <div className="flex justify-between items-center">
                             <span className="text-slate-400 font-semibold">Current Round:</span>

@@ -27,6 +27,7 @@ const MyGames = () => {
   const [matchInfo, setMatchInfo] = useState({});
   const [gameTournaments, setGameTournaments] = useState({});
   const [defaultTournament, setDefaultTournament] = useState(null);
+  const [chessStatus, setChessStatus] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,6 +40,15 @@ const MyGames = () => {
           setMatchInfo(response.data.data.matchInfo || {});
           setGameTournaments(response.data.data.gameTournaments || {});
           setDefaultTournament(response.data.data.tournament || null);
+        }
+
+        try {
+          const chessRes = await api.get('/tournament-engine/chess/my-status');
+          if (chessRes.data.success) {
+            setChessStatus(chessRes.data.data);
+          }
+        } catch (err) {
+          console.error('Failed to fetch Chess status:', err);
         }
       } catch (error) {
         showToast('Failed to fetch registered games', 'error');
@@ -81,6 +91,7 @@ const MyGames = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {games.map((game, index) => {
             const GameIcon = getGameIcon(game);
+            const isChess = game === 'Chess';
             const match = matchInfo[game];
             const tournament = gameTournaments[game] || defaultTournament;
             return (
@@ -118,7 +129,43 @@ const MyGames = () => {
                       </div>
                     )}
 
-                    {match ? (
+                    {isChess && chessStatus ? (
+                      <>
+                        {chessStatus.currentRound > 0 ? (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-400 font-semibold">Round</span>
+                              <span className="text-slate-700 dark:text-white font-bold">Round {chessStatus.currentRound}</span>
+                            </div>
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-dark-850">
+                              <span className="text-slate-400 font-semibold">Opponent</span>
+                              <span className="text-slate-700 dark:text-white font-bold truncate max-w-[130px]">
+                                {chessStatus.byeStatus !== 'No Bye' ? 'None (Bye)' : chessStatus.opponent || 'TBD'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-dark-850">
+                              <span className="text-slate-400 font-semibold">Result Status</span>
+                              <span className={`font-bold ${
+                                ['Champion', 'Won', 'Advanced'].includes(chessStatus.resultStatus) ? 'text-emerald-600 dark:text-emerald-400' :
+                                ['Eliminated', 'Runner-Up'].includes(chessStatus.resultStatus) ? 'text-rose-600 dark:text-rose-400' :
+                                'text-slate-500 dark:text-dark-400'
+                              }`}>{chessStatus.byeStatus !== 'No Bye' ? chessStatus.byeStatus : chessStatus.resultStatus}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-slate-400 font-semibold">Fixture status</span>
+                              <span className="text-slate-550 dark:text-dark-400 font-bold italic">Not Scheduled</span>
+                            </div>
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-dark-850">
+                              <span className="text-slate-400 font-semibold">Match Results</span>
+                              <span className="text-slate-550 dark:text-dark-400 font-bold italic">Pending</span>
+                            </div>
+                          </>
+                        )}
+                      </>
+                    ) : match ? (
                       <>
                         <div className="flex items-center justify-between">
                           <span className="text-slate-400 font-semibold">Round</span>
@@ -132,7 +179,7 @@ const MyGames = () => {
                         </div>
                         <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-dark-850">
                           <span className="text-slate-400 font-semibold">Result Status</span>
-                          <span className="text-slate-500 dark:text-dark-400 font-bold">{match.resultStatus || match.matchStatus}</span>
+                          <span className="text-slate-550 dark:text-dark-400 font-bold">{match.resultStatus || match.matchStatus}</span>
                         </div>
                       </>
                     ) : (

@@ -888,19 +888,6 @@ router.post('/override/withdraw', protect, authorize('super_admin'), async (req,
       return res.status(404).json({ success: false, message: 'Match not found' });
     }
 
-    let winnerId = null;
-    if (match.player1Id === withdrawnPlayerId) {
-      winnerId = match.player2Id;
-    } else if (match.player2Id === withdrawnPlayerId) {
-      winnerId = match.player1Id;
-    }
-
-    match.winnerId = winnerId;
-    match.withdrawnPlayerId = withdrawnPlayerId;
-    match.status = 'withdrawn';
-    match.score = 'Withdrawn';
-    await match.save();
-
     await logAudit({
       req,
       action: 'update',
@@ -908,6 +895,447 @@ router.post('/override/withdraw', protect, authorize('super_admin'), async (req,
     });
 
     res.json({ success: true, message: 'Withdrawal recorded successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ==========================================
+// CHESS KO TOURNAMENT ENGINE SPECIFIC APIs
+// ==========================================
+
+// 1. GET /api/tournament-engine/chess/participants
+// Return all active participants where enrolledGames includes Chess
+router.get('/chess/participants', protect, async (req, res) => {
+  try {
+    const participants = await Participant.find({
+      enrolledGames: 'Chess',
+      status: 'active',
+    }).sort({ participantId: 1 });
+
+    res.json({
+      success: true,
+      count: participants.length,
+      data: participants,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 2. POST /api/tournament-engine/chess/generate-fixtures
+// Input: tournamentId
+router.post('/chess/generate-fixtures', protect, authorize('super_admin', 'admin'), async (req, res) => {
+  try {
+    const { tournamentId } = req.body;
+    if (!tournamentId) {
+      return res.status(400).json({ success: false, message: 'tournamentId is required' });
+    }
+
+    let game = await TournamentGame.findOne({ tournamentId, gameName: 'Chess' });
+    if (!game) {
+      game = await TournamentGame.create({
+        tournamentId,
+        gameName: 'Chess',
+        status: 'Draft',
+        byeHistory: []
+      });
+    }
+
+    const participants = await Participant.find({
+      enrolledGames: 'Chess',
+      status: 'active'
+    });
+
+    if (participants.length < 2) {
+      return res.status(400).json({ success: false, message: 'At least 2 registered participants are required to generate fixtures' });
+    }
+
+    // Delete existing rounds and matches for this game to allow regeneration
+    const oldRounds = await Round.find({ tournamentGameId: game._id });
+    for (const r of oldRounds) {
+      await Match.deleteMany({ roundId: r._id });
+    }
+    await Round.deleteMany({ tournamentGameId: game._id });
+    await Bracket.deleteMany({ tournamentGameId: game._id });
+
+    // Shuffling is handled inside createKnockoutRound helper by default
+    const roundSetup = createKnockoutRound({
+      players: participants.map(p => p.participantId),
+      byeHistory: [],
+    });
+
+    game.byeHistory = roundSetup.byePlayerId ? [roundSetup.byePlayerId] : [];
+    game.champion = null;
+    game.runnerUp = null;
+    game.status = 'Tournament Running';
+    await game.save();
+
+    // Create Round 1
+    const round = await Round.create({
+      tournamentGameId: game._id,
+      roundNumber: 1,
+      status: 'running',
+      byePlayerId: roundSetup.byePlayerId
+    });
+
+    // Create matches
+    const matchesToCreate = roundSetup.matches.map((match) => ({
+      ...match,
+      roundId: round._id,
+      tournamentGameId: game._id,
+    }));
+
+    if (matchesToCreate.length > 0) {
+      await Match.insertMany(matchesToCreate);
+    }
+
+    await logAudit({
+      req,
+      action: 'create',
+      details: `Generated Round 1 Chess fixtures. Total players: ${participants.length}. Bye: ${roundSetup.byePlayerId || 'None'}`,
+    });
+
+    res.json({
+      success: true,
+      message: 'Round 1 fixtures generated successfully',
+      tournamentGameId: game._id
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 3. POST /api/tournament-engine/chess/match/:matchId/winner
+// Input: winnerParticipantId
+router.post('/chess/match/:matchId/winner', protect, authorize('super_admin', 'admin'), async (req, res) => {
+  try {
+    const { winnerParticipantId, score } = req.body;
+    if (!winnerParticipantId) {
+      return res.status(400).json({ success: false, message: 'winnerParticipantId is required' });
+    }
+
+    const match = await Match.findById(req.params.matchId);
+    if (!match) {
+      return res.status(404).json({ success: false, message: 'Match not found' });
+    }
+
+    const game = await TournamentGame.findById(match.tournamentGameId);
+    if (!game) {
+      return res.status(404).json({ success: false, message: 'Tournament game space not found' });
+    }
+    if (!assertChessGame(game, res)) return;
+
+    if (winnerParticipantId !== match.player1Id && winnerParticipantId !== match.player2Id) {
+      return res.status(400).json({ success: false, message: 'Winner must be one of the match participants' });
+    }
+
+    match.winnerId = winnerParticipantId;
+    match.score = score || '';
+    match.status = 'completed';
+    await match.save();
+
+    await logAudit({
+      req,
+      action: 'update',
+      details: `Match ${match._id}: Set Chess winner to ${winnerParticipantId} (Score: ${score || 'N/A'})`,
+    });
+
+    res.json({ success: true, data: match });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 4. POST /api/tournament-engine/chess/generate-next-round
+// Input: tournamentId, currentRoundNumber
+router.post('/chess/generate-next-round', protect, authorize('super_admin', 'admin'), async (req, res) => {
+  try {
+    const { tournamentId, currentRoundNumber } = req.body;
+    if (!tournamentId || !currentRoundNumber) {
+      return res.status(400).json({ success: false, message: 'tournamentId and currentRoundNumber are required' });
+    }
+
+    const game = await TournamentGame.findOne({ tournamentId, gameName: 'Chess' });
+    if (!game) {
+      return res.status(404).json({ success: false, message: 'Tournament game space not found for Chess' });
+    }
+
+    // Find the current active round
+    const activeRound = await Round.findOne({
+      tournamentGameId: game._id,
+      roundNumber: currentRoundNumber
+    });
+    if (!activeRound) {
+      return res.status(400).json({ success: false, message: `Round ${currentRoundNumber} not found` });
+    }
+
+    // Check if all matches in active round are completed
+    const roundMatches = await Match.find({ roundId: activeRound._id });
+    const incompleteMatches = roundMatches.filter((match) => !isMatchComplete(match));
+    if (incompleteMatches.length > 0) {
+      return res.status(400).json({ success: false, message: 'Please complete all matches in the current round first' });
+    }
+
+    // Collect all winners from active round
+    const winners = roundMatches.map(m => m.winnerId).filter(Boolean);
+
+    // Add bye player if there was one
+    if (activeRound.byePlayerId) {
+      winners.push(activeRound.byePlayerId);
+    }
+
+    // If only 1 player remains, we have a champion!
+    if (winners.length === 1) {
+      const championId = winners[0];
+      
+      // Determine runner-up (the other finalist)
+      const lastMatch = roundMatches.find(m => m.winnerId === championId);
+      let runnerUpId = null;
+      if (lastMatch) {
+        runnerUpId = lastMatch.player1Id === championId ? lastMatch.player2Id : lastMatch.player1Id;
+      }
+
+      game.status = 'Tournament Completed';
+      game.champion = championId;
+      game.runnerUp = runnerUpId;
+      await game.save();
+
+      // Close the round status
+      activeRound.status = 'completed';
+      await activeRound.save();
+
+      // Store in Leaderboards
+      const pChamp = await Participant.findOne({ participantId: championId });
+      const pRun = await Participant.findOne({ participantId: runnerUpId });
+
+      await Leaderboard.findOneAndUpdate(
+        { tournamentId: game.tournamentId, gameName: game.gameName },
+        {
+          goldWinner: pChamp ? pChamp.name : championId,
+          silverWinner: pRun ? pRun.name : runnerUpId,
+        },
+        { upsert: true }
+      );
+
+      await logAudit({
+        req,
+        action: 'update',
+        details: `Tournament game Chess completed. Champion: ${championId}, Runner-up: ${runnerUpId}`,
+      });
+
+      return res.json({
+        success: true,
+        completed: true,
+        champion: championId,
+        runnerUp: runnerUpId,
+        message: 'Tournament Completed! Champion and Runner-up are finalized.'
+      });
+    }
+
+    const roundSetup = createKnockoutRound({
+      players: winners,
+      byeHistory: game.byeHistory || [],
+    });
+
+    if (roundSetup.byePlayerId) {
+      game.byeHistory = [...(game.byeHistory || []), roundSetup.byePlayerId];
+      await game.save();
+    }
+
+    // Complete current round
+    activeRound.status = 'completed';
+    await activeRound.save();
+
+    // Create next Round
+    const nextRoundNumber = activeRound.roundNumber + 1;
+    const nextRound = await Round.create({
+      tournamentGameId: game._id,
+      roundNumber: nextRoundNumber,
+      status: 'running',
+      byePlayerId: roundSetup.byePlayerId
+    });
+
+    // Create matches
+    const matchesToCreate = roundSetup.matches.map((match) => ({
+      ...match,
+      roundId: nextRound._id,
+      tournamentGameId: game._id,
+    }));
+
+    if (matchesToCreate.length > 0) {
+      await Match.insertMany(matchesToCreate);
+    }
+
+    await logAudit({
+      req,
+      action: 'create',
+      details: `Generated Round ${nextRoundNumber} Chess fixtures. Advancing: ${winners.length}. Bye: ${roundSetup.byePlayerId || 'None'}`,
+    });
+
+    res.json({ success: true, message: `Round ${nextRoundNumber} generated successfully` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 5. GET /api/tournament-engine/chess/bracket/:tournamentId
+router.get('/chess/bracket/:tournamentId', protect, async (req, res) => {
+  try {
+    const game = await TournamentGame.findOne({ tournamentId: req.params.tournamentId, gameName: 'Chess' });
+    if (!game) {
+      return res.status(404).json({ success: false, message: 'Tournament game space not found for Chess' });
+    }
+
+    const rounds = await Round.find({ tournamentGameId: game._id }).sort({ roundNumber: 1 });
+    const matches = await Match.find({ tournamentGameId: game._id }).sort({ matchNumber: 1, createdAt: 1 });
+
+    const playerMap = await buildPlayerMap(game.gameName);
+
+    const roundBrackets = rounds.map((round) => {
+      const roundMatches = matches
+        .filter((m) => m.roundId.toString() === round._id.toString())
+        .map((m) => ({
+          _id: m._id,
+          matchNumber: m.matchNumber,
+          player1Id: m.player1Id,
+          player1Name: playerMap[m.player1Id] || m.player1Id,
+          player2Id: m.player2Id,
+          player2Name: playerMap[m.player2Id] || m.player2Id,
+          winnerId: m.winnerId,
+          winnerName: m.winnerId ? (playerMap[m.winnerId] || m.winnerId) : null,
+          score: m.score,
+          status: m.status,
+          isBye: m.isBye,
+        }));
+
+      return {
+        _id: round._id,
+        roundNumber: round.roundNumber,
+        status: round.status,
+        byePlayerId: round.byePlayerId,
+        byePlayerName: round.byePlayerId ? (playerMap[round.byePlayerId] || round.byePlayerId) : null,
+        matches: roundMatches,
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        rounds: roundBrackets,
+        byeHistory: game.byeHistory || [],
+        status: game.status,
+        champion: game.champion,
+        championName: game.champion ? (playerMap[game.champion] || game.champion) : null,
+        runnerUp: game.runnerUp,
+        runnerUpName: game.runnerUp ? (playerMap[game.runnerUp] || game.runnerUp) : null,
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 6. GET /api/tournament-engine/chess/my-status
+router.get('/chess/my-status', protect, async (req, res) => {
+  try {
+    const playerID = req.user.userId.toUpperCase();
+    const participant = await Participant.findOne({ participantId: playerID });
+    if (!participant) {
+      return res.status(404).json({ success: false, message: 'Participant record not found' });
+    }
+
+    const game = await TournamentGame.findOne({ gameName: 'Chess' });
+    if (!game) {
+      return res.json({
+        success: true,
+        data: {
+          currentRound: 0,
+          opponent: null,
+          matchStatus: 'Not Scheduled',
+          byeStatus: 'No Bye',
+          resultStatus: 'Pending'
+        }
+      });
+    }
+
+    const participantMatches = await Match.find({
+      tournamentGameId: game._id,
+      $or: [
+        { player1Id: playerID },
+        { player2Id: playerID }
+      ]
+    }).populate('roundId');
+
+    let currentRound = 0;
+    let opponent = null;
+    let matchStatus = 'Not Scheduled';
+    let byeStatus = 'No Bye';
+    let resultStatus = 'Pending';
+
+    const activeRound = await Round.findOne({ tournamentGameId: game._id }).sort({ roundNumber: -1 });
+    
+    const sortedMatches = participantMatches.sort((a, b) => {
+      const aNum = a.roundId ? a.roundId.roundNumber : 0;
+      const bNum = b.roundId ? b.roundId.roundNumber : 0;
+      return bNum - aNum;
+    });
+
+    const latestMatch = sortedMatches[0];
+
+    if (activeRound && activeRound.byePlayerId === playerID) {
+      currentRound = activeRound.roundNumber;
+      matchStatus = 'Bye';
+      byeStatus = 'Bye - Advanced to next round';
+      resultStatus = game.champion === playerID ? 'Champion' : 'Advanced';
+    } else if (latestMatch && latestMatch.roundId) {
+      currentRound = latestMatch.roundId.roundNumber;
+      const opponentId = latestMatch.player1Id === playerID ? latestMatch.player2Id : latestMatch.player1Id;
+      
+      let opponentName = 'TBD';
+      if (opponentId) {
+        const opponentDoc = await Participant.findOne({ participantId: opponentId });
+        opponentName = opponentDoc ? opponentDoc.name : opponentId;
+      }
+      opponent = opponentId ? `${opponentId} (${opponentName})` : 'TBD';
+
+      if (latestMatch.winnerId) {
+        if (latestMatch.winnerId === playerID) {
+          matchStatus = 'Completed';
+          resultStatus = game.champion === playerID ? 'Champion' : 'Won';
+        } else {
+          matchStatus = 'Completed';
+          resultStatus = game.runnerUp === playerID ? 'Runner-Up' : 'Eliminated';
+        }
+      } else {
+        matchStatus = 'Upcoming';
+        resultStatus = 'Pending';
+      }
+    }
+
+    if (game.status === 'Tournament Completed') {
+      if (game.champion === playerID) {
+        resultStatus = 'Champion';
+        matchStatus = 'Completed';
+      } else if (game.runnerUp === playerID) {
+        resultStatus = 'Runner-Up';
+        matchStatus = 'Completed';
+      } else if (participantMatches.length > 0) {
+        resultStatus = 'Eliminated';
+        matchStatus = 'Completed';
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        currentRound,
+        opponent,
+        matchStatus,
+        byeStatus,
+        resultStatus
+      }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
