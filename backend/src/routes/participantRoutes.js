@@ -554,8 +554,8 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
       };
     }
 
-    const chessGames = await TournamentGame.find({ gameName: 'Chess' });
-    for (const game of chessGames) {
+    const activeGamesList = await TournamentGame.find({ gameName: { $in: ['Chess', 'Carrom', 'Table Tennis', 'Ludo', 'Skipping', 'Spoon Race', 'BGMI'] } });
+    for (const game of activeGamesList) {
       if (!participant.enrolledGames.includes(game.gameName)) continue;
 
       const byeRound = await Round.findOne({
@@ -580,7 +580,7 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
       }
     }
 
-    // Find active tournament
+    // Find active tournament (for backwards compatibility)
     const activeTournament = await Tournament.findOne({ isArchived: false });
     const tournamentId = activeTournament ? activeTournament._id : null;
 
@@ -610,7 +610,7 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
 
     // Filter active byes (current round running where player has a bye)
     const activeByes = [];
-    for (const game of chessGames) {
+    for (const game of activeGamesList) {
       if (!participant.enrolledGames.includes(game.gameName)) continue;
       const activeByeRound = await Round.findOne({
         tournamentGameId: game._id,
@@ -662,7 +662,7 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
     }
 
     // Collect historical completed byes
-    for (const game of chessGames) {
+    for (const game of activeGamesList) {
       if (!participant.enrolledGames.includes(game.gameName)) continue;
       const completedByeRounds = await Round.find({
         tournamentGameId: game._id,
@@ -686,6 +686,23 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
     // Sort completed matches by round number descending
     completedMatchesList.sort((a, b) => b.roundNumber - a.roundNumber);
 
+    // Fetch tournament details specifically mapped to each game card
+    const gameTournaments = {};
+    for (const gameName of (participant.enrolledGames || [])) {
+      const tg = await TournamentGame.findOne({ gameName }).populate('tournamentId');
+      if (tg && tg.tournamentId) {
+        gameTournaments[gameName] = {
+          tournamentId: tg.tournamentId._id,
+          name: tg.tournamentId.name,
+          venue: tg.tournamentId.venue,
+          startDate: tg.tournamentId.startDate,
+          endDate: tg.tournamentId.endDate,
+          status: tg.tournamentId.status,
+          gameStatus: tg.status
+        };
+      }
+    }
+
     const targetDate = getTodayIndianDate();
     const todayAttendance = await Attendance.findOne({
       date: targetDate,
@@ -708,6 +725,7 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
         matchInfo,
         nextFixture,
         completedMatches: completedMatchesList,
+        gameTournaments,
         tournamentId,
         tournament: activeTournament,
         todayAttendanceStatus,

@@ -76,7 +76,15 @@ const TournamentRoom = () => {
       const gamesRes = await api.get(`/tournament-engine/games/${id}`);
       if (gamesRes.data.success) {
         setGames(gamesRes.data.data);
-        const matchedGame = gamesRes.data.data.find(g => g.gameName === selectedGame);
+        let activeGame = selectedGame;
+        if (gamesRes.data.data.length > 0) {
+          const hasSelectedGame = gamesRes.data.data.some(g => g.gameName === selectedGame);
+          if (!hasSelectedGame) {
+            activeGame = gamesRes.data.data[0].gameName;
+            setSelectedGame(activeGame);
+          }
+        }
+        const matchedGame = gamesRes.data.data.find(g => g.gameName === activeGame);
         if (matchedGame) {
           setGameDetail(matchedGame);
           const eligibleRes = await api.get(`/tournament-engine/games/${matchedGame._id}/eligible-players`);
