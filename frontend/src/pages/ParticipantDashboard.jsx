@@ -143,19 +143,25 @@ const ParticipantDashboard = () => {
                             <span className="text-slate-800 dark:text-white font-bold">Round {match.roundNumber}</span>
                           </div>
                           <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
-                            <span className="text-slate-400 font-semibold">Opponent:</span>
-                            <span className="text-slate-850 dark:text-slate-200 font-bold truncate max-w-[100px]">{match.opponentName} ({match.opponentId})</span>
+                            <span className="text-slate-400 font-semibold">{match.byeStatus === 'Bye - Advanced' ? 'Bye Status:' : 'Opponent:'}</span>
+                            <span className="text-slate-850 dark:text-slate-200 font-bold truncate max-w-[120px]">
+                              {match.byeStatus === 'Bye - Advanced' ? 'Bye - Advanced' : `${match.opponentId || 'TBD'}${match.opponentName ? ` (${match.opponentName})` : ''}`}
+                            </span>
                           </div>
                           <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
                             <span className="text-slate-400 font-semibold">Match Status:</span>
                             <span className={`font-bold uppercase ${
-                              match.matchStatus === 'Won' ? 'text-emerald-600 dark:text-emerald-400' :
+                              ['Won', 'Champion', 'Runner-Up', 'Bye - Advanced'].includes(match.matchStatus) ? 'text-emerald-600 dark:text-emerald-400' :
                               match.matchStatus === 'Lost' ? 'text-rose-600 dark:text-rose-400' :
                               'text-indigo-605 dark:text-indigo-400'
                             }`}>{match.matchStatus}</span>
                           </div>
                           <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
-                            <span className="text-slate-400 font-semibold">Engine Status:</span>
+                            <span className="text-slate-400 font-semibold">Result Status:</span>
+                            <span className="text-slate-550 dark:text-dark-400 font-bold">{match.resultStatus || match.matchStatus}</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                            <span className="text-slate-400 font-semibold">Tournament:</span>
                             <span className="text-slate-550 dark:text-dark-400 font-bold">{match.tournamentStatus}</span>
                           </div>
                         </>

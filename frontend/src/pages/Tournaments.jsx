@@ -6,6 +6,18 @@ import { useToast } from '../context/ToastContext';
 import { TableSkeleton } from '../components/Skeleton';
 import { Plus, Edit2, Archive, Trash2, Calendar, Search, Filter, X, Eye, Trophy } from 'lucide-react';
 
+const toDateInput = (value) => (value ? value.split('T')[0] : '');
+const toDateTimeInput = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+const defaultDateInput = () => new Date().toISOString().slice(0, 10);
+const defaultDateTimeInput = () => {
+  const date = new Date();
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+
 const Tournaments = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -20,15 +32,15 @@ const Tournaments = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState({
-    name: '',
+    name: 'Indoor Sports Tournament',
     description: '',
-    venue: '',
-    startDate: '',
-    endDate: '',
-    registrationStartDate: '',
-    registrationEndDate: '',
-    status: 'upcoming',
-    gameType: 'generic',
+    venue: 'ICAI Bathinda Branch',
+    startDate: defaultDateTimeInput(),
+    endDate: defaultDateInput(),
+    registrationStartDate: defaultDateInput(),
+    registrationEndDate: defaultDateInput(),
+    status: 'Draft',
+    gameType: 'chess',
   });
 
   const isEditable = user?.role === 'super_admin' || user?.role === 'admin';
@@ -59,15 +71,15 @@ const Tournaments = () => {
   const handleOpenCreate = () => {
     setEditId(null);
     setForm({
-      name: '',
+      name: 'Indoor Sports Tournament',
       description: '',
-      venue: '',
-      startDate: '',
-      endDate: '',
-      registrationStartDate: '',
-      registrationEndDate: '',
-      status: 'upcoming',
-      gameType: 'generic',
+      venue: 'ICAI Bathinda Branch',
+      startDate: defaultDateTimeInput(),
+      endDate: defaultDateInput(),
+      registrationStartDate: defaultDateInput(),
+      registrationEndDate: defaultDateInput(),
+      status: 'Draft',
+      gameType: 'chess',
     });
     setIsModalOpen(true);
   };
@@ -78,10 +90,10 @@ const Tournaments = () => {
       name: item.name,
       description: item.description || '',
       venue: item.venue,
-      startDate: item.startDate.split('T')[0],
-      endDate: item.endDate.split('T')[0],
-      registrationStartDate: item.registrationStartDate.split('T')[0],
-      registrationEndDate: item.registrationEndDate.split('T')[0],
+      startDate: toDateTimeInput(item.startDate),
+      endDate: toDateInput(item.endDate),
+      registrationStartDate: toDateInput(item.registrationStartDate),
+      registrationEndDate: toDateInput(item.registrationEndDate),
       status: item.status,
       gameType: item.gameType,
     });
@@ -185,10 +197,11 @@ const Tournaments = () => {
               className="bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-xs font-semibold focus:outline-none text-slate-700 dark:text-dark-300"
             >
               <option value="">All Statuses</option>
-              <option value="upcoming">Upcoming</option>
-              <option value="ongoing">Ongoing</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="Draft">Draft</option>
+              <option value="Registration Open">Registration Open</option>
+              <option value="Registration Closed">Registration Closed</option>
+              <option value="Tournament Running">Tournament Running</option>
+              <option value="Tournament Completed">Tournament Completed</option>
             </select>
           </div>
 
@@ -231,10 +244,10 @@ const Tournaments = () => {
                   </span>
                   
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                    tourney.status === 'ongoing' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400' :
-                    tourney.status === 'upcoming' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-400' :
-                    tourney.status === 'completed' ? 'bg-slate-100 text-slate-800 dark:bg-dark-800 dark:text-dark-400' :
-                    'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-400'
+                    tourney.status === 'Tournament Running' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400' :
+                    tourney.status === 'Registration Open' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-400' :
+                    tourney.status === 'Tournament Completed' ? 'bg-slate-100 text-slate-800 dark:bg-dark-800 dark:text-dark-400' :
+                    'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-400'
                   }`}>
                     {tourney.status}
                   </span>
@@ -332,7 +345,7 @@ const Tournaments = () => {
                   name="name"
                   value={form.name}
                   onChange={handleFormChange}
-                  placeholder="e.g. Badminton Singles Championship"
+                  placeholder="Indoor Sports Tournament"
                   className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500"
                   required
                 />
@@ -386,7 +399,7 @@ const Tournaments = () => {
                 <div>
                   <label className="block text-xs font-bold text-slate-400 dark:text-dark-500 uppercase tracking-widest mb-1.5">Start Date</label>
                   <input
-                    type="date"
+                    type="datetime-local"
                     name="startDate"
                     value={form.startDate}
                     onChange={handleFormChange}
@@ -440,10 +453,11 @@ const Tournaments = () => {
                   onChange={handleFormChange}
                   className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary-500 font-medium"
                 >
-                  <option value="upcoming">Upcoming</option>
-                  <option value="ongoing">Ongoing</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
+                  <option value="Draft">Draft</option>
+                  <option value="Registration Open">Registration Open</option>
+                  <option value="Registration Closed">Registration Closed</option>
+                  <option value="Tournament Running">Tournament Running</option>
+                  <option value="Tournament Completed">Tournament Completed</option>
                 </select>
               </div>
 

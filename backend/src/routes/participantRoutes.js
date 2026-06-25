@@ -521,6 +521,8 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
     for (const match of participantMatches) {
       if (!match.tournamentGameId || !match.roundId) continue;
       const gameName = match.tournamentGameId.gameName;
+      const existingInfo = matchInfo[gameName];
+      if (existingInfo && existingInfo.roundNumber > match.roundId.roundNumber) continue;
       const opponentId = match.player1Id === playerID ? match.player2Id : match.player1Id;
       
       // Look up opponent name
@@ -534,15 +536,48 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
       if (match.winnerId) {
         matchStatus = match.winnerId === playerID ? 'Won' : 'Lost';
       }
+      if (match.tournamentGameId.champion === playerID) {
+        matchStatus = 'Champion';
+      } else if (match.tournamentGameId.runnerUp === playerID) {
+        matchStatus = 'Runner-Up';
+      }
 
       matchInfo[gameName] = {
         roundNumber: match.roundId.roundNumber,
         opponentId,
         opponentName,
         matchStatus,
+        byeStatus: 'No Bye',
+        resultStatus: matchStatus,
         score: match.score || '',
         tournamentStatus: match.tournamentGameId.status,
       };
+    }
+
+    const chessGames = await TournamentGame.find({ gameName: 'Chess' });
+    for (const game of chessGames) {
+      if (!participant.enrolledGames.includes(game.gameName)) continue;
+
+      const byeRound = await Round.findOne({
+        tournamentGameId: game._id,
+        byePlayerId: playerID,
+      }).sort({ roundNumber: -1 });
+
+      if (byeRound) {
+        const existingInfo = matchInfo[game.gameName];
+        if (!existingInfo || byeRound.roundNumber >= existingInfo.roundNumber) {
+          matchInfo[game.gameName] = {
+            roundNumber: byeRound.roundNumber,
+            opponentId: null,
+            opponentName: '',
+            matchStatus: 'Bye - Advanced',
+            byeStatus: 'Bye - Advanced',
+            resultStatus: game.champion === playerID ? 'Champion' : 'Advanced',
+            score: '',
+            tournamentStatus: game.status,
+          };
+        }
+      }
     }
 
     // Find active tournament

@@ -23,6 +23,7 @@ const getGameIcon = (gameName) => {
 const MyGames = () => {
   const { showToast } = useToast();
   const [games, setGames] = useState([]);
+  const [matchInfo, setMatchInfo] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,6 +33,7 @@ const MyGames = () => {
         const response = await api.get('/participants/my-dashboard');
         if (response.data.success) {
           setGames(response.data.data.enrolledGames || response.data.data.games || []);
+          setMatchInfo(response.data.data.matchInfo || {});
         }
       } catch (error) {
         showToast('Failed to fetch registered games', 'error');
@@ -74,6 +76,7 @@ const MyGames = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {games.map((game, index) => {
             const GameIcon = getGameIcon(game);
+            const match = matchInfo[game];
             return (
               <div 
                 key={index} 
@@ -92,14 +95,35 @@ const MyGames = () => {
                   </div>
 
                   <div className="space-y-2 bg-slate-50 dark:bg-dark-950 p-3 rounded-2xl border border-slate-100 dark:border-dark-900">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400 font-semibold">Fixture status</span>
-                      <span className="text-slate-500 dark:text-dark-400 font-bold italic">Not Scheduled</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-dark-850">
-                      <span className="text-slate-400 font-semibold">Match Results</span>
-                      <span className="text-slate-500 dark:text-dark-400 font-bold italic">Pending</span>
-                    </div>
+                    {match ? (
+                      <>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400 font-semibold">Round</span>
+                          <span className="text-slate-700 dark:text-white font-bold">Round {match.roundNumber}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-dark-850">
+                          <span className="text-slate-400 font-semibold">{match.byeStatus === 'Bye - Advanced' ? 'Bye Status' : 'Opponent'}</span>
+                          <span className="text-slate-700 dark:text-white font-bold truncate max-w-[130px]">
+                            {match.byeStatus === 'Bye - Advanced' ? 'Bye - Advanced' : match.opponentId || 'TBD'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-dark-850">
+                          <span className="text-slate-400 font-semibold">Result Status</span>
+                          <span className="text-slate-500 dark:text-dark-400 font-bold">{match.resultStatus || match.matchStatus}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400 font-semibold">Fixture status</span>
+                          <span className="text-slate-500 dark:text-dark-400 font-bold italic">Not Scheduled</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-dark-850">
+                          <span className="text-slate-400 font-semibold">Match Results</span>
+                          <span className="text-slate-500 dark:text-dark-400 font-bold italic">Pending</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

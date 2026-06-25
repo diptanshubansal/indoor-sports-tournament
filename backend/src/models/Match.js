@@ -12,6 +12,10 @@ const matchSchema = new mongoose.Schema(
       ref: 'TournamentGame',
       required: true,
     },
+    matchNumber: {
+      type: Number,
+      default: 1,
+    },
     player1Id: {
       type: String,
       default: null, // participantId
@@ -40,6 +44,10 @@ const matchSchema = new mongoose.Schema(
     score: {
       type: String,
       default: '',
+    },
+    isBye: {
+      type: Boolean,
+      default: false,
     },
   },
   {

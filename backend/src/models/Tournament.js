@@ -6,6 +6,7 @@ const tournamentSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      default: 'Indoor Sports Tournament',
     },
     description: {
       type: String,
@@ -15,6 +16,7 @@ const tournamentSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      default: 'ICAI Bathinda Branch',
     },
     startDate: {
       type: Date,

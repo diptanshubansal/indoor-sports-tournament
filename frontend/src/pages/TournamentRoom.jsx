@@ -21,6 +21,7 @@ const TournamentRoom = () => {
   const [selectedGame, setSelectedGame] = useState('Chess');
   const [gameDetail, setGameDetail] = useState(null);
   const [bracket, setBracket] = useState([]);
+  const [eligiblePlayers, setEligiblePlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [enrollmentError, setEnrollmentError] = useState(false);
@@ -78,6 +79,10 @@ const TournamentRoom = () => {
         const matchedGame = gamesRes.data.data.find(g => g.gameName === selectedGame);
         if (matchedGame) {
           setGameDetail(matchedGame);
+          const eligibleRes = await api.get(`/tournament-engine/games/${matchedGame._id}/eligible-players`);
+          if (eligibleRes.data.success) {
+            setEligiblePlayers(eligibleRes.data.data);
+          }
           // Fetch bracket
           const bracketRes = await api.get(`/tournament-engine/games/${matchedGame._id}/bracket`);
           if (bracketRes.data.success) {
@@ -86,6 +91,7 @@ const TournamentRoom = () => {
         } else {
           setGameDetail(null);
           setBracket([]);
+          setEligiblePlayers([]);
         }
       }
     } catch (error) {
@@ -275,6 +281,12 @@ const TournamentRoom = () => {
     setShowOverrideModal(true);
   };
 
+  const completedStatuses = ['completed', 'walkover', 'disqualified', 'withdrawn'];
+  const latestRound = bracket[bracket.length - 1];
+  const latestRoundComplete = latestRound?.matches?.length > 0
+    && latestRound.matches.every((match) => completedStatuses.includes(match.status));
+  const canGenerateNextRound = gameDetail?.status === 'Tournament Running' && latestRoundComplete;
+
   if (loading) {
     return <TableSkeleton rows={5} cols={5} />;
   }
@@ -302,23 +314,16 @@ const TournamentRoom = () => {
       {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <span className="text-[10px] font-black uppercase text-primary-500 tracking-wider">Tournament Space</span>
+          <span className="text-[10px] font-black uppercase text-primary-500 tracking-wider">Tournament - Chess Engine / Chess Fixtures</span>
           <h1 className="text-2xl font-black text-slate-900 dark:text-white mt-1">{tournament?.name}</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Venue: {tournament?.venue} | {selectedGame} Engine</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Venue: {tournament?.venue} | Starts: {tournament?.startDate ? new Date(tournament.startDate).toLocaleString() : 'Not set'}
+          </p>
         </div>
 
-        {/* Game Selector */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-400">Select Game:</label>
-          <select
-            value={selectedGame}
-            onChange={(e) => setSelectedGame(e.target.value)}
-            className="bg-white border border-slate-200 dark:bg-dark-900 dark:border-dark-800 rounded-xl py-2 px-3 text-xs font-bold text-slate-850 dark:text-white focus:outline-none"
-          >
-            {['Chess', 'Carrom', 'Table Tennis', 'Ludo', 'Skipping', 'Spoon Race', 'BGMI', 'Tug of War'].map(g => (
-              <option key={g} value={g}>{g}</option>
-            ))}
-          </select>
+        <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-2xl px-4 py-3 shadow-sm">
+          <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Active Game</div>
+          <div className="text-sm font-black text-slate-850 dark:text-white">Chess</div>
         </div>
       </div>
 
@@ -371,7 +376,7 @@ const TournamentRoom = () => {
                     onClick={() => handleStatusChange('Registration Open')}
                     className="bg-slate-850 hover:bg-slate-950 text-white font-bold py-2 px-3 rounded-xl text-xs transition-all active:scale-95"
                   >
-                    Open Registration
+                    Open for Registered Participants
                   </button>
                 )}
                 {gameDetail.status === 'Registration Open' && (
@@ -379,7 +384,7 @@ const TournamentRoom = () => {
                     onClick={() => handleStatusChange('Registration Closed')}
                     className="bg-slate-850 hover:bg-slate-950 text-white font-bold py-2 px-3 rounded-xl text-xs transition-all active:scale-95"
                   >
-                    Close Registration
+                    Start Tournament
                   </button>
                 )}
                 {gameDetail.status === 'Registration Closed' && (
@@ -388,10 +393,10 @@ const TournamentRoom = () => {
                     className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-xl text-xs shadow-md transition-all active:scale-95 flex items-center gap-1"
                   >
                     <Play className="w-3.5 h-3.5" />
-                    <span>Generate Round 1 Fixtures</span>
+                    <span>Generate Chess Fixtures</span>
                   </button>
                 )}
-                {gameDetail.status === 'Tournament Running' && (
+                {canGenerateNextRound && (
                   <button
                     onClick={handleGenerateNextRound}
                     className="bg-indigo-650 hover:bg-indigo-600 text-white font-bold py-2 px-3.5 rounded-xl text-xs shadow-md transition-all active:scale-95 flex items-center gap-1"
@@ -402,6 +407,43 @@ const TournamentRoom = () => {
                 )}
               </div>
             )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[240px,1fr] gap-6">
+            <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-5 shadow-sm">
+              <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Chess Players</div>
+              <div className="text-4xl font-black text-slate-900 dark:text-white mt-2">{eligiblePlayers.length}</div>
+              {isWritable && gameDetail.status === 'Registration Closed' && bracket.length === 0 && (
+                <button
+                  onClick={handleGenerateFixtures}
+                  disabled={actionLoading}
+                  className="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-1"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  <span>Generate Round 1 Fixtures</span>
+                </button>
+              )}
+            </div>
+            <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h3 className="text-sm font-black text-slate-850 dark:text-white">Eligible Chess Players</h3>
+                <span className="text-[10px] font-bold uppercase text-slate-400">enrolledGames includes Chess</span>
+              </div>
+              {eligiblePlayers.length === 0 ? (
+                <div className="text-xs text-slate-400 py-6 text-center border border-dashed border-slate-200 dark:border-dark-800 rounded-2xl">
+                  No active Chess participants found.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">
+                  {eligiblePlayers.map((player) => (
+                    <div key={player._id} className="flex items-center justify-between gap-3 bg-slate-50 dark:bg-dark-950 border border-slate-100 dark:border-dark-850 rounded-xl px-3 py-2 text-xs">
+                      <span className="font-black text-slate-800 dark:text-white">{player.participantId}</span>
+                      <span className="font-semibold text-slate-500 dark:text-dark-300 truncate">{player.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Results Summary if Completed */}
@@ -437,13 +479,14 @@ const TournamentRoom = () => {
             <div className="space-y-8">
               {/* Bracket Tree Columns */}
               <div>
-                <h3 className="text-base font-black text-slate-800 dark:text-white mb-4">Bracket Tree Diagram</h3>
+                <h3 className="text-base font-black text-slate-800 dark:text-white mb-4">Complete Bracket History</h3>
                 <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-thin">
                   {bracket.map((round) => (
                     <div key={round._id} className="flex-1 min-w-[240px] space-y-4">
                       {/* Round Header */}
                       <div className="bg-slate-100 dark:bg-dark-850 p-3 rounded-2xl border border-slate-200 dark:border-dark-800 text-center">
                         <span className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Round {round.roundNumber}</span>
+                        <div className="text-[9px] text-slate-400 font-bold mt-1 uppercase">{round.status}</div>
                         {round.byePlayerId && (
                           <div className="text-[9px] text-primary-600 dark:text-primary-400 font-bold mt-1 bg-primary-50 dark:bg-primary-950/20 py-0.5 rounded-lg border border-primary-200/20">
                             Bye: {round.byePlayerName || round.byePlayerId}
@@ -486,10 +529,30 @@ const TournamentRoom = () => {
                                   >
                                     <ShieldAlert className="w-3 h-3" />
                                   </button>
+                                  <button
+                                    onClick={() => openOverrideModal('editWinner', { matchId: match._id, winnerId: match.winnerId || match.player1Id })}
+                                    className="p-1 hover:bg-slate-200 dark:hover:bg-dark-850 rounded text-slate-500 hover:text-emerald-500"
+                                    title="Edit winner"
+                                  >
+                                    <Edit3 className="w-3 h-3" />
+                                  </button>
+                                  {isCompleted && (
+                                    <button
+                                      onClick={() => openOverrideModal('reopenMatch', { matchId: match._id })}
+                                      className="p-1 hover:bg-slate-200 dark:hover:bg-dark-850 rounded text-slate-500 hover:text-amber-500"
+                                      title="Reopen match"
+                                    >
+                                      <RefreshCw className="w-3 h-3" />
+                                    </button>
+                                  )}
                                 </div>
                               )}
 
                               {/* Player 1 Card */}
+                              <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                <span>Match {match.matchNumber || '-'}</span>
+                                <span>{isCompleted ? 'Completed' : 'Pending'}</span>
+                              </div>
                               <div className={`flex justify-between items-center text-xs p-1.5 rounded-lg ${
                                 match.winnerId && match.winnerId === match.player1Id ? 'bg-emerald-50 dark:bg-emerald-950/20 font-bold border border-emerald-200/20' : ''
                               }`}>
@@ -514,14 +577,14 @@ const TournamentRoom = () => {
 
                               {/* Match details & controls footer */}
                               <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-dark-850 text-[10px] text-slate-400">
-                                <span>{match.status === 'scheduled' ? 'Upcoming' : match.score || match.status}</span>
+                                <span>{match.status === 'scheduled' ? 'Pending' : match.score || 'Completed'}</span>
                                 {isWritable && match.status === 'scheduled' && (
                                   <button
                                     onClick={() => openWinnerModal(match)}
                                     className="text-primary-600 hover:text-primary-500 font-bold flex items-center gap-0.5"
                                   >
                                     <Edit3 className="w-3 h-3" />
-                                    <span>Enter Result</span>
+                                    <span>Save Result</span>
                                   </button>
                                 )}
                               </div>
@@ -580,6 +643,27 @@ const TournamentRoom = () => {
                     >
                       <Zap className="w-3.5 h-3.5 text-amber-500" />
                       <span>Edit Round Bye</span>
+                    </button>
+                    <button
+                      onClick={() => openOverrideModal('regenerateRound', { roundId: latestRound?._id || '' })}
+                      className="bg-slate-100 hover:bg-slate-200 dark:bg-dark-850 dark:hover:bg-dark-800 text-slate-700 dark:text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center gap-1"
+                    >
+                      <GitMerge className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Regenerate Current Round</span>
+                    </button>
+                    <button
+                      onClick={() => openOverrideModal('editWinner')}
+                      className="bg-slate-100 hover:bg-slate-200 dark:bg-dark-850 dark:hover:bg-dark-800 text-slate-700 dark:text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center gap-1"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Edit Winner</span>
+                    </button>
+                    <button
+                      onClick={() => openOverrideModal('reopenMatch')}
+                      className="bg-slate-100 hover:bg-slate-200 dark:bg-dark-850 dark:hover:bg-dark-800 text-slate-700 dark:text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Reopen Match</span>
                     </button>
                     <button
                       onClick={() => openOverrideModal('walkover')}
@@ -771,7 +855,7 @@ const TournamentRoom = () => {
                 </>
               )}
 
-              {overrideAction === 'reopenRound' && (
+              {(overrideAction === 'reopenRound' || overrideAction === 'regenerateRound') && (
                 <>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Round ID</label>
@@ -783,6 +867,45 @@ const TournamentRoom = () => {
                       required
                     />
                   </div>
+                </>
+              )}
+
+              {(overrideAction === 'editWinner' || overrideAction === 'reopenMatch') && (
+                <>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Match ID</label>
+                    <input
+                      type="text"
+                      value={overrideForm.matchId}
+                      onChange={(e) => setOverrideForm({ ...overrideForm, matchId: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-xs text-slate-800 dark:text-white focus:outline-none"
+                      required
+                    />
+                  </div>
+                  {overrideAction === 'editWinner' && (
+                    <>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Winner Player ID</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. P001"
+                          value={overrideForm.winnerId}
+                          onChange={(e) => setOverrideForm({ ...overrideForm, winnerId: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-xs text-slate-800 dark:text-white focus:outline-none"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Score (Optional)</label>
+                        <input
+                          type="text"
+                          value={overrideForm.score}
+                          onChange={(e) => setOverrideForm({ ...overrideForm, score: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-200 dark:bg-dark-950 dark:border-dark-800 rounded-xl py-2 px-3 text-xs text-slate-800 dark:text-white focus:outline-none"
+                        />
+                      </div>
+                    </>
+                  )}
                 </>
               )}
 

@@ -11,20 +11,32 @@ const Bracket = require('../models/Bracket');
 const Participant = require('../models/Participant');
 const User = require('../models/User');
 const Leaderboard = require('../models/Leaderboard');
+const { createKnockoutRound } = require('../games/knockoutEngine');
 
 // Middlewares
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/rbacMiddleware');
 const { logAudit } = require('../middleware/auditLogger');
 
-// Helper to shuffle array
-const shuffle = (array) => {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+const completedMatchStatuses = ['completed', 'walkover', 'disqualified', 'withdrawn'];
+
+const isMatchComplete = (match) => completedMatchStatuses.includes(match.status);
+
+const assertChessGame = (game, res) => {
+  if (game.gameName !== 'Chess') {
+    res.status(400).json({ success: false, message: 'Phase 4A supports Chess fixtures only' });
+    return false;
   }
-  return arr;
+  return true;
+};
+
+const buildPlayerMap = async (gameName) => {
+  const participants = await Participant.find({ enrolledGames: gameName });
+  const playerMap = {};
+  participants.forEach((p) => {
+    playerMap[p.participantId] = p.name;
+  });
+  return playerMap;
 };
 
 // @route   POST /api/tournament-engine/games
@@ -35,6 +47,9 @@ router.post('/games', protect, authorize('super_admin', 'admin'), async (req, re
     const { tournamentId, gameName } = req.body;
     if (!tournamentId || !gameName) {
       return res.status(400).json({ success: false, message: 'tournamentId and gameName are required' });
+    }
+    if (gameName !== 'Chess') {
+      return res.status(400).json({ success: false, message: 'Only Chess engine is available in Phase 4A' });
     }
 
     // Check if association already exists
@@ -82,7 +97,34 @@ router.get('/game-details/:id', protect, async (req, res) => {
     if (!game) {
       return res.status(404).json({ success: false, message: 'Tournament game not found' });
     }
+    if (!assertChessGame(game, res)) return;
     res.json({ success: true, data: game });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   GET /api/tournament-engine/games/:id/eligible-players
+// @desc    Get active Chess participants eligible for this tournament game
+// @access  Private (All roles)
+router.get('/games/:id/eligible-players', protect, async (req, res) => {
+  try {
+    const game = await TournamentGame.findById(req.params.id);
+    if (!game) {
+      return res.status(404).json({ success: false, message: 'Tournament game not found' });
+    }
+    if (!assertChessGame(game, res)) return;
+
+    const participants = await Participant.find({
+      enrolledGames: 'Chess',
+      status: 'active',
+    }).sort({ participantId: 1 });
+
+    res.json({
+      success: true,
+      count: participants.length,
+      data: participants,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -98,6 +140,7 @@ router.put('/games/:id/status', protect, authorize('super_admin', 'admin'), asyn
     if (!game) {
       return res.status(404).json({ success: false, message: 'Tournament game not found' });
     }
+    if (!assertChessGame(game, res)) return;
 
     const oldStatus = game.status;
     game.status = status;
@@ -124,10 +167,11 @@ router.post('/games/:id/generate-fixtures', protect, authorize('super_admin', 'a
     if (!game) {
       return res.status(404).json({ success: false, message: 'Tournament game not found' });
     }
+    if (!assertChessGame(game, res)) return;
 
     // Pick all participants enrolled in this game
     const participants = await Participant.find({
-      enrolledGames: game.gameName,
+      enrolledGames: 'Chess',
       status: 'active'
     });
 
@@ -143,41 +187,29 @@ router.post('/games/:id/generate-fixtures', protect, authorize('super_admin', 'a
     await Round.deleteMany({ tournamentGameId: game._id });
     await Bracket.deleteMany({ tournamentGameId: game._id });
 
-    // Shuffled participants
-    const playerIds = shuffle(participants.map(p => p.participantId));
-    let byePlayerId = null;
-
-    if (playerIds.length % 2 !== 0) {
-      // Assign one random Bye
-      const randomIndex = Math.floor(Math.random() * playerIds.length);
-      byePlayerId = playerIds.splice(randomIndex, 1)[0];
-      game.byeHistory = [byePlayerId];
-      await game.save();
-    } else {
-      game.byeHistory = [];
-      await game.save();
-    }
+    const roundSetup = createKnockoutRound({
+      players: participants.map(p => p.participantId),
+      byeHistory: [],
+    });
+    game.byeHistory = roundSetup.byePlayerId ? [roundSetup.byePlayerId] : [];
+    game.champion = null;
+    game.runnerUp = null;
+    await game.save();
 
     // Create Round 1
     const round = await Round.create({
       tournamentGameId: game._id,
       roundNumber: 1,
       status: 'running',
-      byePlayerId
+      byePlayerId: roundSetup.byePlayerId
     });
 
     // Create matches
-    const matchesToCreate = [];
-    for (let i = 0; i < playerIds.length; i += 2) {
-      matchesToCreate.push({
-        roundId: round._id,
-        tournamentGameId: game._id,
-        player1Id: playerIds[i],
-        player2Id: playerIds[i + 1],
-        winnerId: null,
-        status: 'scheduled'
-      });
-    }
+    const matchesToCreate = roundSetup.matches.map((match) => ({
+      ...match,
+      roundId: round._id,
+      tournamentGameId: game._id,
+    }));
 
     if (matchesToCreate.length > 0) {
       await Match.insertMany(matchesToCreate);
@@ -189,7 +221,7 @@ router.post('/games/:id/generate-fixtures', protect, authorize('super_admin', 'a
     await logAudit({
       req,
       action: 'create',
-      details: `Generated Round 1 fixtures for '${game.gameName}'. Total players: ${participants.length}. Bye: ${byePlayerId || 'None'}`,
+      details: `Generated Round 1 fixtures for '${game.gameName}'. Total players: ${participants.length}. Bye: ${roundSetup.byePlayerId || 'None'}`,
     });
 
     res.json({ success: true, message: 'Round 1 fixtures generated successfully' });
@@ -208,6 +240,11 @@ router.post('/matches/:id/winner', protect, authorize('super_admin', 'admin'), a
     if (!match) {
       return res.status(404).json({ success: false, message: 'Match not found' });
     }
+    const game = await TournamentGame.findById(match.tournamentGameId);
+    if (!game) {
+      return res.status(404).json({ success: false, message: 'Tournament game not found' });
+    }
+    if (!assertChessGame(game, res)) return;
 
     if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
       return res.status(400).json({ success: false, message: 'Winner must be one of the match participants' });
@@ -239,6 +276,7 @@ router.post('/games/:id/next-round', protect, authorize('super_admin', 'admin'),
     if (!game) {
       return res.status(404).json({ success: false, message: 'Tournament game not found' });
     }
+    if (!assertChessGame(game, res)) return;
 
     // Find current active round
     const activeRound = await Round.findOne({ tournamentGameId: game._id }).sort({ roundNumber: -1 });
@@ -247,14 +285,14 @@ router.post('/games/:id/next-round', protect, authorize('super_admin', 'admin'),
     }
 
     // Check if all matches in active round are completed
-    const incompleteMatches = await Match.find({ roundId: activeRound._id, status: 'scheduled' });
+    const roundMatches = await Match.find({ roundId: activeRound._id }).sort({ matchNumber: 1, createdAt: 1 });
+    const incompleteMatches = roundMatches.filter((match) => !isMatchComplete(match));
     if (incompleteMatches.length > 0) {
       return res.status(400).json({ success: false, message: 'Please complete all matches in the current round first' });
     }
 
     // Collect all winners from active round
-    const completedMatches = await Match.find({ roundId: activeRound._id });
-    const winners = completedMatches.map(m => m.winnerId).filter(Boolean);
+    const winners = roundMatches.map(m => m.winnerId).filter(Boolean);
 
     // Add Bye player if there was one
     if (activeRound.byePlayerId) {
@@ -267,7 +305,7 @@ router.post('/games/:id/next-round', protect, authorize('super_admin', 'admin'),
       
       // Determine runner-up (the other finalist)
       // The last match of the last round contains the champion and the runner-up
-      const lastMatch = completedMatches.find(m => m.winnerId === championId);
+      const lastMatch = roundMatches.find(m => m.winnerId === championId);
       let runnerUpId = null;
       if (lastMatch) {
         runnerUpId = lastMatch.player1Id === championId ? lastMatch.player2Id : lastMatch.player1Id;
@@ -311,27 +349,13 @@ router.post('/games/:id/next-round', protect, authorize('super_admin', 'admin'),
       });
     }
 
-    // Shuffle winners for random matchups
-    const advancingPlayers = shuffle(winners);
-    let byePlayerId = null;
+    const roundSetup = createKnockoutRound({
+      players: winners,
+      byeHistory: game.byeHistory || [],
+    });
 
-    if (advancingPlayers.length % 2 !== 0) {
-      // Pick random bye, checking bye history to avoid consecutive if possible
-      const lastByeId = activeRound.byePlayerId;
-      let eligibleForBye = advancingPlayers;
-      if (lastByeId && advancingPlayers.includes(lastByeId) && advancingPlayers.length > 1) {
-        eligibleForBye = advancingPlayers.filter(id => id !== lastByeId);
-      }
-
-      const randomIndex = Math.floor(Math.random() * eligibleForBye.length);
-      byePlayerId = eligibleForBye[randomIndex];
-      
-      // Remove bye player from matching list
-      const idxInAdvancing = advancingPlayers.indexOf(byePlayerId);
-      advancingPlayers.splice(idxInAdvancing, 1);
-
-      // Save to bye history
-      game.byeHistory.push(byePlayerId);
+    if (roundSetup.byePlayerId) {
+      game.byeHistory = [...(game.byeHistory || []), roundSetup.byePlayerId];
       await game.save();
     }
 
@@ -345,21 +369,15 @@ router.post('/games/:id/next-round', protect, authorize('super_admin', 'admin'),
       tournamentGameId: game._id,
       roundNumber: nextRoundNumber,
       status: 'running',
-      byePlayerId
+      byePlayerId: roundSetup.byePlayerId
     });
 
     // Create matches
-    const matchesToCreate = [];
-    for (let i = 0; i < advancingPlayers.length; i += 2) {
-      matchesToCreate.push({
-        roundId: nextRound._id,
-        tournamentGameId: game._id,
-        player1Id: advancingPlayers[i],
-        player2Id: advancingPlayers[i + 1],
-        winnerId: null,
-        status: 'scheduled'
-      });
-    }
+    const matchesToCreate = roundSetup.matches.map((match) => ({
+      ...match,
+      roundId: nextRound._id,
+      tournamentGameId: game._id,
+    }));
 
     if (matchesToCreate.length > 0) {
       await Match.insertMany(matchesToCreate);
@@ -368,7 +386,7 @@ router.post('/games/:id/next-round', protect, authorize('super_admin', 'admin'),
     await logAudit({
       req,
       action: 'create',
-      details: `Generated Round ${nextRoundNumber} for '${game.gameName}'. Advancing: ${winners.length}. Bye: ${byePlayerId || 'None'}`,
+      details: `Generated Round ${nextRoundNumber} for '${game.gameName}'. Advancing: ${winners.length}. Bye: ${roundSetup.byePlayerId || 'None'}`,
     });
 
     res.json({ success: true, message: `Round ${nextRoundNumber} generated successfully` });
@@ -382,17 +400,17 @@ router.post('/games/:id/next-round', protect, authorize('super_admin', 'admin'),
 // @access  Private (All roles)
 router.get('/games/:id/bracket', protect, async (req, res) => {
   try {
+    const game = await TournamentGame.findById(req.params.id);
+    if (!game) {
+      return res.status(404).json({ success: false, message: 'Tournament game not found' });
+    }
+    if (!assertChessGame(game, res)) return;
+
     const rounds = await Round.find({ tournamentGameId: req.params.id }).sort({ roundNumber: 1 });
-    const matches = await Match.find({ tournamentGameId: req.params.id });
+    const matches = await Match.find({ tournamentGameId: req.params.id }).sort({ matchNumber: 1, createdAt: 1 });
 
     // Fetch participant info for rendering names
-    const participants = await Participant.find({
-      enrolledGames: (await TournamentGame.findById(req.params.id)).gameName
-    });
-    const playerMap = {};
-    participants.forEach(p => {
-      playerMap[p.participantId] = p.name;
-    });
+    const playerMap = await buildPlayerMap(game.gameName);
 
     const roundsWithMatches = rounds.map(r => {
       const roundMatches = matches.filter(m => m.roundId.toString() === r._id.toString());
@@ -404,6 +422,7 @@ router.get('/games/:id/bracket', protect, async (req, res) => {
         byePlayerName: playerMap[r.byePlayerId] || null,
         matches: roundMatches.map(m => ({
           _id: m._id,
+          matchNumber: m.matchNumber,
           player1Id: m.player1Id,
           player1Name: playerMap[m.player1Id] || m.player1Id || 'TBD',
           player2Id: m.player2Id,
@@ -411,6 +430,7 @@ router.get('/games/:id/bracket', protect, async (req, res) => {
           winnerId: m.winnerId,
           status: m.status,
           score: m.score,
+          isBye: m.isBye,
           disqualifiedPlayerId: m.disqualifiedPlayerId,
           withdrawnPlayerId: m.withdrawnPlayerId,
         }))
@@ -570,7 +590,15 @@ router.post('/override/change-bye', protect, authorize('super_admin'), async (re
     // Add to game byeHistory
     const game = await TournamentGame.findById(round.tournamentGameId);
     if (game) {
-      game.byeHistory.push(newByePlayerId);
+      const roundsWithByes = await Round.find({
+        tournamentGameId: game._id,
+        _id: { $ne: round._id },
+        byePlayerId: { $ne: null },
+      });
+      game.byeHistory = [...new Set([
+        ...roundsWithByes.map((item) => item.byePlayerId).filter(Boolean),
+        newByePlayerId,
+      ])];
       await game.save();
     }
 
@@ -599,6 +627,12 @@ router.post('/override/regenerate-round', protect, authorize('super_admin'), asy
     if (!game) {
       return res.status(404).json({ success: false, message: 'Game association not found' });
     }
+    if (!assertChessGame(game, res)) return;
+
+    const existingMatches = await Match.find({ roundId: round._id });
+    if (existingMatches.some((match) => isMatchComplete(match))) {
+      return res.status(400).json({ success: false, message: 'Current round can only be regenerated before result entry' });
+    }
 
     // Get list of players who should be in this round
     let players = [];
@@ -623,40 +657,43 @@ router.post('/override/regenerate-round', protect, authorize('super_admin'), asy
       return res.status(400).json({ success: false, message: 'Not enough players to regenerate fixtures' });
     }
 
+    const previousByeRounds = await Round.find({
+      tournamentGameId: game._id,
+      _id: { $ne: round._id },
+      byePlayerId: { $ne: null },
+    });
+    const previousByeHistory = previousByeRounds.map((item) => item.byePlayerId).filter(Boolean);
+    const roundSetup = createKnockoutRound({
+      players,
+      byeHistory: previousByeHistory,
+    });
+
     // Delete existing matches for this round
     await Match.deleteMany({ roundId: round._id });
 
-    // Shuffle and assign bye if odd
-    const playerIds = shuffle(players);
-    let byePlayerId = null;
-
-    if (playerIds.length % 2 !== 0) {
-      const randomIndex = Math.floor(Math.random() * playerIds.length);
-      byePlayerId = playerIds.splice(randomIndex, 1)[0];
-      game.byeHistory.push(byePlayerId);
-      await game.save();
-    }
-
-    round.byePlayerId = byePlayerId;
+    round.byePlayerId = roundSetup.byePlayerId;
     round.status = 'running';
     await round.save();
 
     // Create matches
-    const matchesToCreate = [];
-    for (let i = 0; i < playerIds.length; i += 2) {
-      matchesToCreate.push({
-        roundId: round._id,
-        tournamentGameId: game._id,
-        player1Id: playerIds[i],
-        player2Id: playerIds[i + 1],
-        winnerId: null,
-        status: 'scheduled'
-      });
-    }
+    const matchesToCreate = roundSetup.matches.map((match) => ({
+      ...match,
+      roundId: round._id,
+      tournamentGameId: game._id,
+    }));
 
     if (matchesToCreate.length > 0) {
       await Match.insertMany(matchesToCreate);
     }
+
+    game.byeHistory = [...new Set([
+      ...previousByeHistory,
+      roundSetup.byePlayerId,
+    ].filter(Boolean))];
+    game.champion = null;
+    game.runnerUp = null;
+    game.status = 'Tournament Running';
+    await game.save();
 
     await logAudit({
       req,

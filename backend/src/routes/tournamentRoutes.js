@@ -53,7 +53,22 @@ router.get('/:id', protect, async (req, res) => {
 // @access  Private (Super Admin, Admin)
 router.post('/', protect, authorize('super_admin', 'admin'), async (req, res) => {
   try {
-    const tournament = await Tournament.create(req.body);
+    const startDate = req.body.startDate ? new Date(req.body.startDate) : new Date();
+    const endDate = req.body.endDate ? new Date(req.body.endDate) : startDate;
+    const registrationStartDate = req.body.registrationStartDate ? new Date(req.body.registrationStartDate) : new Date();
+    const registrationEndDate = req.body.registrationEndDate ? new Date(req.body.registrationEndDate) : startDate;
+
+    const tournament = await Tournament.create({
+      ...req.body,
+      name: req.body.name || 'Indoor Sports Tournament',
+      venue: req.body.venue || 'ICAI Bathinda Branch',
+      startDate,
+      endDate,
+      registrationStartDate,
+      registrationEndDate,
+      status: req.body.status || 'Draft',
+      gameType: req.body.gameType || 'chess',
+    });
 
     await logAudit({
       req,
