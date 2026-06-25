@@ -22,18 +22,16 @@ const getGameIcon = (gameName) => {
     default: return Activity;
   }
 };
+
 const ParticipantDashboard = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
-  const [tournaments, setTournaments] = useState([]);
-  const [selectedTournamentId, setSelectedTournamentId] = useState('');
-  const [myGames, setMyGames] = useState([]);
+  const [chessStatus, setChessStatus] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [tournamentInfo, setTournamentInfo] = useState(null);
 
   useEffect(() => {
-    const fetchInitialData = async () => {
+    const fetchDashboardData = async () => {
       try {
         setLoading(true);
         const response = await api.get('/participants/my-dashboard');
@@ -41,15 +39,13 @@ const ParticipantDashboard = () => {
           setData(response.data.data);
         }
 
-        const tourneyRes = await api.get('/tournaments');
-        if (tourneyRes.data.success) {
-          const list = tourneyRes.data.data || [];
-          setTournaments(list);
-          if (list.length > 0) {
-            const active = list.find(t => t.status === 'Tournament Running' || t.status === 'Registration Open') || list[0];
-            setSelectedTournamentId(active._id);
-            setTournamentInfo(active);
+        try {
+          const chessRes = await api.get('/tournament-engine/chess/my-status');
+          if (chessRes.data.success) {
+            setChessStatus(chessRes.data.data);
           }
+        } catch (err) {
+          console.error('Failed to fetch Chess status:', err);
         }
       } catch (error) {
         showToast('Failed to fetch dashboard records', 'error');
@@ -58,29 +54,9 @@ const ParticipantDashboard = () => {
       }
     };
 
-    fetchInitialData();
+    fetchDashboardData();
   }, []);
 
-  useEffect(() => {
-    if (!selectedTournamentId) return;
-
-    const fetchMyGames = async () => {
-      try {
-        const res = await api.get(`/participants/my-games?tournamentId=${selectedTournamentId}`);
-        if (res.data.success) {
-          setMyGames(res.data.data);
-        }
-        const current = tournaments.find(t => t._id === selectedTournamentId);
-        if (current) {
-          setTournamentInfo(current);
-        }
-      } catch (err) {
-        console.error('Failed to fetch participant games:', err);
-      }
-    };
-
-    fetchMyGames();
-  }, [selectedTournamentId, tournaments]);
   if (loading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
@@ -132,7 +108,7 @@ const ParticipantDashboard = () => {
 
 
       {/* Enrolled Games (Cards) */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Star className="w-5 h-5 text-primary-500" />
@@ -141,36 +117,7 @@ const ParticipantDashboard = () => {
           <p className="text-xs text-slate-400 mt-1">Individual game enrollments and statuses.</p>
         </div>
 
-        {/* Selected Tournament Context Panel */}
-        <div className="bg-slate-50 dark:bg-dark-950 border border-slate-200 dark:border-dark-800 rounded-3xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-1">
-            <div className="text-[10px] text-slate-450 dark:text-dark-500 font-bold uppercase tracking-wider">Tournament</div>
-            <div className="text-base font-black text-slate-800 dark:text-white">
-              {tournamentInfo?.name || 'Indoor Sports Tournament'}
-            </div>
-            <div className="text-xs text-slate-450 dark:text-dark-500 mt-1">
-              Venue: <span className="font-bold text-slate-700 dark:text-slate-200">{tournamentInfo?.venue || 'ICAI Bathinda Branch'}</span>
-            </div>
-          </div>
-          {tournaments.length > 1 && (
-            <div className="space-y-1 shrink-0 w-full md:w-auto">
-              <label className="block text-[10px] font-bold text-slate-450 dark:text-dark-500 uppercase tracking-widest mb-1.5">Select Tournament</label>
-              <select
-                value={selectedTournamentId}
-                onChange={(e) => setSelectedTournamentId(e.target.value)}
-                className="w-full md:w-56 bg-white dark:bg-dark-900 border border-slate-250 dark:border-dark-850 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-xs font-semibold focus:ring-1 focus:ring-primary-500 focus:outline-none"
-              >
-                {tournaments.map((t) => (
-                  <option key={t._id} value={t._id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-
-        {myGames.filter(g => g.enrolled).length === 0 ? (
+        {games.length === 0 ? (
           <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl py-12 text-center shadow-sm">
             <Activity className="w-12 h-12 mx-auto text-slate-350 dark:text-dark-850 mb-3" />
             <h3 className="text-base font-bold text-slate-700 dark:text-white">No Registered Games</h3>
@@ -178,55 +125,140 @@ const ParticipantDashboard = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {myGames.filter(g => g.enrolled).map((game, index) => {
+            {games.map((game, index) => {
+              const GameIcon = getGameIcon(game);
+              const isChess = game === 'Chess';
+              const match = data.matchInfo && data.matchInfo[game];
+              const gameTournament = (gameTournaments && gameTournaments[game]) || tournament;
               return (
                 <div 
                   key={index} 
                   className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group flex flex-col justify-between"
                 >
+                  <div className="absolute right-0 top-0 w-14 h-14 bg-indigo-500/5 dark:bg-indigo-950/20 rounded-bl-3xl flex items-center justify-center text-indigo-500 dark:text-indigo-400">
+                    <GameIcon className="w-5 h-5 opacity-60 group-hover:scale-110 transition-transform" />
+                  </div>
+                
                   <div className="space-y-4 flex-1">
                     <div className="flex justify-between items-start">
-                      <h3 className="font-extrabold text-slate-800 dark:text-white text-lg truncate pr-4">{game.gameName}</h3>
+                      <h3 className="font-extrabold text-slate-800 dark:text-white text-lg truncate pr-4">{game}</h3>
                       <span className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border border-emerald-200/50 dark:border-emerald-800/30 flex items-center gap-1 shrink-0">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Enrolled
                       </span>
                     </div>
 
                     <div className="space-y-2 bg-slate-50 dark:bg-dark-950 p-3 rounded-2xl border border-slate-100 dark:border-dark-900 text-xs">
-                      {/* Fixture Status */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400 font-semibold">Fixture Status:</span>
-                        <span className={`font-bold ${
-                          game.fixtureStatus === 'Not Scheduled' ? 'text-slate-450 dark:text-dark-500 italic' :
-                          game.fixtureStatus === 'Scheduled' ? 'text-blue-500' :
-                          ['Champion', 'Bye - Advanced'].includes(game.fixtureStatus) ? 'text-emerald-600 dark:text-emerald-400' :
-                          game.fixtureStatus === 'Eliminated' ? 'text-rose-600' :
-                          'text-slate-800 dark:text-white'
-                        }`}>
-                          {game.fixtureStatus}
-                        </span>
-                      </div>
-                      
-                      {/* Match Results */}
-                      <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 dark:border-dark-850">
-                        <span className="text-slate-400 font-semibold">Match Results:</span>
-                        <span className={`font-bold ${
-                          game.resultStatus === 'Pending' ? 'text-slate-450 italic' :
-                          ['Champion', 'Won', 'Advanced'].includes(game.resultStatus) ? 'text-emerald-600 dark:text-emerald-400' :
-                          ['Eliminated', 'Lost'].includes(game.resultStatus) ? 'text-rose-600' :
-                          'text-slate-800 dark:text-white'
-                        }`}>
-                          {game.resultStatus}
-                        </span>
-                      </div>
+                      {gameTournament && (
+                        <div className="pb-2 mb-2 border-b border-slate-200 dark:border-dark-850 space-y-1 text-slate-500 dark:text-dark-400">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-primary-500 shrink-0" />
+                            <span className="font-semibold text-[10px] uppercase tracking-wider">Schedule:</span>
+                            <span className="text-slate-800 dark:text-white font-bold">
+                              {new Date(gameTournament.startDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-primary-500 shrink-0" />
+                            <span className="font-semibold text-[10px] uppercase tracking-wider">Venue:</span>
+                            <span className="text-slate-800 dark:text-white font-bold truncate max-w-[170px]">{gameTournament.venue}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {isChess && chessStatus ? (
+                        <>
+                          {chessStatus.currentRound > 0 ? (
+                            <>
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-400 font-semibold">Current Round:</span>
+                                <span className="text-slate-800 dark:text-white font-bold">Round {chessStatus.currentRound}</span>
+                              </div>
+                              <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                                <span className="text-slate-400 font-semibold">Opponent:</span>
+                                <span className="text-slate-850 dark:text-slate-200 font-bold truncate max-w-[120px]">
+                                  {chessStatus.byeStatus !== 'No Bye' ? 'None (Bye)' : chessStatus.opponent || 'TBD'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                                <span className="text-slate-400 font-semibold">Match Status:</span>
+                                <span className={`font-bold uppercase ${
+                                  ['Completed'].includes(chessStatus.matchStatus) ? 'text-emerald-600 dark:text-emerald-400' :
+                                  chessStatus.matchStatus === 'Bye' ? 'text-indigo-605 dark:text-indigo-400' :
+                                  'text-indigo-605 dark:text-indigo-400'
+                                }`}>{chessStatus.matchStatus}</span>
+                              </div>
+                              <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                                <span className="text-slate-400 font-semibold">Result Status:</span>
+                                <span className={`font-bold ${
+                                  ['Champion', 'Won', 'Advanced'].includes(chessStatus.resultStatus) ? 'text-emerald-600 dark:text-emerald-400' :
+                                  ['Eliminated', 'Runner-Up'].includes(chessStatus.resultStatus) ? 'text-rose-600 dark:text-rose-400' :
+                                  'text-slate-550 dark:text-dark-400'
+                                }`}>{chessStatus.byeStatus !== 'No Bye' ? chessStatus.byeStatus : chessStatus.resultStatus}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <span className="text-slate-400 font-semibold">Fixture status:</span>
+                                <span className="text-slate-550 dark:text-dark-400 font-bold italic">Not Scheduled</span>
+                              </div>
+                              <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                                <span className="text-slate-400 font-semibold">Match Results:</span>
+                                <span className="text-slate-550 dark:text-dark-400 font-bold italic">Pending</span>
+                              </div>
+                            </>
+                          )}
+                        </>
+                      ) : match ? (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400 font-semibold">Current Round:</span>
+                            <span className="text-slate-800 dark:text-white font-bold">Round {match.roundNumber}</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                            <span className="text-slate-400 font-semibold">{match.byeStatus === 'Bye - Advanced' ? 'Bye Status:' : 'Opponent:'}</span>
+                            <span className="text-slate-850 dark:text-slate-200 font-bold truncate max-w-[120px]">
+                              {match.byeStatus === 'Bye - Advanced' ? 'Bye - Advanced' : `${match.opponentId || 'TBD'}${match.opponentName ? ` (${match.opponentName})` : ''}`}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                            <span className="text-slate-400 font-semibold">Match Status:</span>
+                            <span className={`font-bold uppercase ${
+                              ['Won', 'Champion', 'Runner-Up', 'Bye - Advanced'].includes(match.matchStatus) ? 'text-emerald-600 dark:text-emerald-400' :
+                              match.matchStatus === 'Lost' ? 'text-rose-600 dark:text-rose-400' :
+                              'text-indigo-605 dark:text-indigo-400'
+                            }`}>{match.matchStatus}</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                            <span className="text-slate-400 font-semibold">Result Status:</span>
+                            <span className="text-slate-550 dark:text-dark-400 font-bold">{match.resultStatus || match.matchStatus}</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                            <span className="text-slate-400 font-semibold">Tournament:</span>
+                            <span className="text-slate-550 dark:text-dark-400 font-bold">{match.tournamentStatus}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400 font-semibold">Fixture status:</span>
+                            <span className="text-slate-550 dark:text-dark-400 font-bold italic">Not Scheduled</span>
+                          </div>
+                          <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 dark:border-dark-850">
+                            <span className="text-slate-400 font-semibold">Match Results:</span>
+                            <span className="text-slate-550 dark:text-dark-400 font-bold italic">Pending</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
 
                   <div className="mt-4 pt-2">
                     <button
                       onClick={() => {
-                        if (selectedTournamentId) {
-                          navigate(`/tournament-room/${selectedTournamentId}?game=${game.gameName}`);
+                        const targetId = gameTournament?.tournamentId || data.tournamentId;
+                        if (targetId) {
+                          navigate(`/tournament-room/${targetId}?game=${game}`);
                         } else {
                           showToast('No active tournament event found.', 'info');
                         }
