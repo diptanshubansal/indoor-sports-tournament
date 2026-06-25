@@ -136,6 +136,23 @@ const ParticipantDashboard = () => {
                     </div>
 
                     <div className="space-y-2 bg-slate-50 dark:bg-dark-950 p-3 rounded-2xl border border-slate-100 dark:border-dark-900 text-xs">
+                      {tournament && (
+                        <div className="pb-2 mb-2 border-b border-slate-200 dark:border-dark-850 space-y-1 text-slate-500 dark:text-dark-400">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-primary-500 shrink-0" />
+                            <span className="font-semibold text-[10px] uppercase tracking-wider">Schedule:</span>
+                            <span className="text-slate-800 dark:text-white font-bold">
+                              {new Date(tournament.startDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-primary-500 shrink-0" />
+                            <span className="font-semibold text-[10px] uppercase tracking-wider">Venue:</span>
+                            <span className="text-slate-800 dark:text-white font-bold truncate max-w-[170px]">{tournament.venue}</span>
+                          </div>
+                        </div>
+                      )}
+
                       {match ? (
                         <>
                           <div className="flex justify-between items-center">
@@ -202,7 +219,7 @@ const ParticipantDashboard = () => {
         )}
       </div>
 
-      {/* Fixtures & Results grid placeholders */}
+      {/* Fixtures & Results grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Fixtures Section */}
         <div className="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-800 rounded-3xl p-6 shadow-sm space-y-4">
@@ -210,8 +227,42 @@ const ParticipantDashboard = () => {
             <Play className="w-5 h-5 text-primary-500" />
             <span>My Match Fixtures</span>
           </h3>
-          <div className="h-32 bg-slate-50 dark:bg-dark-950 rounded-2xl border border-dashed border-slate-200 dark:border-dark-850 flex items-center justify-center p-6 text-center text-slate-400 text-sm font-semibold">
-            {fixturesPlaceholder}
+          <div className="flex items-center justify-center min-h-[8rem]">
+            {data.nextFixture ? (
+              <div className="space-y-3 w-full text-left text-xs">
+                <div className="flex justify-between items-center bg-slate-50 dark:bg-dark-950 p-3.5 rounded-2xl border border-slate-100 dark:border-dark-850">
+                  <div>
+                    <div className="font-extrabold text-sm text-slate-800 dark:text-white flex items-center gap-1.5">
+                      <Gamepad2 className="w-4 h-4 text-primary-500" />
+                      <span>{data.nextFixture.gameName}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">Round {data.nextFixture.roundNumber}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">Opponent</div>
+                    <div className="font-bold text-slate-700 dark:text-slate-200">
+                      {data.nextFixture.isBye ? 'Bye - Advanced' : data.nextFixture.opponentId ? `${data.nextFixture.opponentName || data.nextFixture.opponentId} (${data.nextFixture.opponentId})` : 'TBD'}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center text-[10px] text-slate-450 dark:text-dark-500 px-1 font-bold">
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-primary-500" />
+                    Status: {data.nextFixture.status}
+                  </span>
+                  {tournament && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-primary-500" />
+                      {tournament.venue}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="w-full h-32 bg-slate-50 dark:bg-dark-950 rounded-2xl border border-dashed border-slate-200 dark:border-dark-850 flex items-center justify-center p-6 text-center text-slate-400 text-sm font-semibold">
+                {fixturesPlaceholder}
+              </div>
+            )}
           </div>
         </div>
 
@@ -221,8 +272,38 @@ const ParticipantDashboard = () => {
             <Trophy className="w-5 h-5 text-primary-500" />
             <span>My Match Results</span>
           </h3>
-          <div className="h-32 bg-slate-50 dark:bg-dark-950 rounded-2xl border border-dashed border-slate-200 dark:border-dark-850 flex items-center justify-center p-6 text-center text-slate-400 text-sm font-semibold">
-            {resultsPlaceholder}
+          <div className="flex items-center justify-center min-h-[8rem]">
+            {data.completedMatches && data.completedMatches.length > 0 ? (
+              <div className="space-y-2.5 w-full text-left text-xs max-h-48 overflow-y-auto pr-1">
+                {data.completedMatches.map((match, idx) => (
+                  <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-dark-950 p-3 rounded-2xl border border-slate-100 dark:border-dark-850">
+                    <div>
+                      <div className="font-extrabold text-slate-800 dark:text-white flex items-center gap-1">
+                        <span>{match.gameName}</span>
+                        <span className="text-[9px] text-slate-400 font-bold uppercase">(Rd {match.roundNumber})</span>
+                      </div>
+                      <div className="text-[9px] text-slate-450 mt-0.5">
+                        {match.isBye ? 'Bye - Advanced' : `VS ${match.opponentName || match.opponentId} (${match.opponentId})`}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                        match.resultStatus.startsWith('Won') || match.resultStatus === 'Bye - Advanced'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400' 
+                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-400'
+                      }`}>
+                        {match.resultStatus}
+                      </span>
+                      {match.score && <div className="text-[9px] text-slate-400 font-bold mt-1">Score: {match.score}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="w-full h-32 bg-slate-50 dark:bg-dark-950 rounded-2xl border border-dashed border-slate-200 dark:border-dark-850 flex items-center justify-center p-6 text-center text-slate-400 text-sm font-semibold">
+                {resultsPlaceholder}
+              </div>
+            )}
           </div>
         </div>
       </div>

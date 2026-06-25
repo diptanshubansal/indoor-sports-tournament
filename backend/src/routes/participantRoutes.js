@@ -584,6 +584,108 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
     const activeTournament = await Tournament.findOne({ isArchived: false });
     const tournamentId = activeTournament ? activeTournament._id : null;
 
+    // Compile upcoming fixtures and completed matches
+    let nextFixture = null;
+    const upcomingFixtures = [];
+    const completedMatchesList = [];
+
+    // Filter scheduled (upcoming) matches
+    const scheduledMatches = participantMatches.filter(m => m.status === 'scheduled');
+    for (const match of scheduledMatches) {
+      const opponentId = match.player1Id === playerID ? match.player2Id : match.player1Id;
+      let opponentName = 'TBD';
+      if (opponentId) {
+        const opponent = await Participant.findOne({ participantId: opponentId });
+        opponentName = opponent ? opponent.name : opponentId;
+      }
+      upcomingFixtures.push({
+        gameName: match.tournamentGameId.gameName,
+        roundNumber: match.roundId.roundNumber,
+        opponentId,
+        opponentName,
+        status: 'Upcoming',
+        isBye: false
+      });
+    }
+
+    // Filter active byes (current round running where player has a bye)
+    const activeByes = [];
+    for (const game of chessGames) {
+      if (!participant.enrolledGames.includes(game.gameName)) continue;
+      const activeByeRound = await Round.findOne({
+        tournamentGameId: game._id,
+        byePlayerId: playerID,
+        status: 'running'
+      }).sort({ roundNumber: -1 });
+      if (activeByeRound) {
+        activeByes.push({
+          gameName: game.gameName,
+          roundNumber: activeByeRound.roundNumber,
+          opponentId: null,
+          opponentName: '',
+          status: 'Bye - Advanced',
+          isBye: true
+        });
+      }
+    }
+
+    // Combine upcoming and sort to find the NEXT one
+    const allUpcoming = [...upcomingFixtures, ...activeByes].sort((a, b) => a.roundNumber - b.roundNumber);
+    if (allUpcoming.length > 0) {
+      nextFixture = allUpcoming[0];
+    }
+
+    // Compile completed matches
+    const dbCompletedMatches = participantMatches.filter(m => ['completed', 'walkover', 'disqualified', 'withdrawn'].includes(m.status));
+    for (const match of dbCompletedMatches) {
+      const opponentId = match.player1Id === playerID ? match.player2Id : match.player1Id;
+      let opponentName = 'TBD';
+      if (opponentId) {
+        const opponent = await Participant.findOne({ participantId: opponentId });
+        opponentName = opponent ? opponent.name : opponentId;
+      }
+      let resultStatus = match.winnerId === playerID ? 'Won' : 'Lost';
+      if (match.status === 'walkover') resultStatus = match.winnerId === playerID ? 'Won (Walkover)' : 'Lost (Walkover)';
+      if (match.status === 'disqualified') resultStatus = match.winnerId === playerID ? 'Won (Disqualification)' : 'Lost (Disqualified)';
+      if (match.status === 'withdrawn') resultStatus = match.winnerId === playerID ? 'Won (Withdrawal)' : 'Lost (Withdrawn)';
+
+      completedMatchesList.push({
+        gameName: match.tournamentGameId.gameName,
+        roundNumber: match.roundId.roundNumber,
+        opponentId,
+        opponentName,
+        resultStatus,
+        score: match.score || '',
+        isBye: false,
+        createdAt: match.createdAt
+      });
+    }
+
+    // Collect historical completed byes
+    for (const game of chessGames) {
+      if (!participant.enrolledGames.includes(game.gameName)) continue;
+      const completedByeRounds = await Round.find({
+        tournamentGameId: game._id,
+        byePlayerId: playerID,
+        status: 'completed'
+      });
+      for (const br of completedByeRounds) {
+        completedMatchesList.push({
+          gameName: game.gameName,
+          roundNumber: br.roundNumber,
+          opponentId: null,
+          opponentName: '',
+          resultStatus: 'Bye - Advanced',
+          score: '',
+          isBye: true,
+          createdAt: br.createdAt
+        });
+      }
+    }
+
+    // Sort completed matches by round number descending
+    completedMatchesList.sort((a, b) => b.roundNumber - a.roundNumber);
+
     const targetDate = getTodayIndianDate();
     const todayAttendance = await Attendance.findOne({
       date: targetDate,
@@ -604,6 +706,8 @@ router.get('/my-dashboard', protect, authorize('participant'), async (req, res) 
         fixturesPlaceholder: 'My Fixtures: Not Scheduled Yet',
         resultsPlaceholder: 'My Results: Pending',
         matchInfo,
+        nextFixture,
+        completedMatches: completedMatchesList,
         tournamentId,
         tournament: activeTournament,
         todayAttendanceStatus,

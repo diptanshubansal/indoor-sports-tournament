@@ -3,7 +3,8 @@ import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { 
   Trophy, Activity, Play, CheckCircle2,
-  Crown, Target, Swords, Gamepad2, Users, Flame, Sparkles, Dice5
+  Crown, Target, Swords, Gamepad2, Users, Flame, Sparkles, Dice5,
+  Calendar, MapPin
 } from 'lucide-react';
 
 const getGameIcon = (gameName) => {
@@ -24,6 +25,7 @@ const MyGames = () => {
   const { showToast } = useToast();
   const [games, setGames] = useState([]);
   const [matchInfo, setMatchInfo] = useState({});
+  const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,6 +36,7 @@ const MyGames = () => {
         if (response.data.success) {
           setGames(response.data.data.enrolledGames || response.data.data.games || []);
           setMatchInfo(response.data.data.matchInfo || {});
+          setTournament(response.data.data.tournament || null);
         }
       } catch (error) {
         showToast('Failed to fetch registered games', 'error');
@@ -94,20 +97,37 @@ const MyGames = () => {
                     </span>
                   </div>
 
-                  <div className="space-y-2 bg-slate-50 dark:bg-dark-950 p-3 rounded-2xl border border-slate-100 dark:border-dark-900">
+                  <div className="space-y-2 bg-slate-50 dark:bg-dark-950 p-3 rounded-2xl border border-slate-100 dark:border-dark-900 text-xs">
+                    {tournament && (
+                      <div className="pb-2 mb-2 border-b border-slate-200 dark:border-dark-850 space-y-1 text-slate-500 dark:text-dark-400">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-primary-500 shrink-0" />
+                          <span className="font-semibold text-[10px] uppercase tracking-wider">Schedule:</span>
+                          <span className="text-slate-800 dark:text-white font-bold">
+                            {new Date(tournament.startDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-primary-500 shrink-0" />
+                          <span className="font-semibold text-[10px] uppercase tracking-wider">Venue:</span>
+                          <span className="text-slate-800 dark:text-white font-bold truncate max-w-[170px]">{tournament.venue}</span>
+                        </div>
+                      </div>
+                    )}
+
                     {match ? (
                       <>
-                        <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center justify-between">
                           <span className="text-slate-400 font-semibold">Round</span>
                           <span className="text-slate-700 dark:text-white font-bold">Round {match.roundNumber}</span>
                         </div>
-                        <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-dark-850">
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-dark-850">
                           <span className="text-slate-400 font-semibold">{match.byeStatus === 'Bye - Advanced' ? 'Bye Status' : 'Opponent'}</span>
                           <span className="text-slate-700 dark:text-white font-bold truncate max-w-[130px]">
-                            {match.byeStatus === 'Bye - Advanced' ? 'Bye - Advanced' : match.opponentId || 'TBD'}
+                            {match.byeStatus === 'Bye - Advanced' ? 'Bye - Advanced' : `${match.opponentId || 'TBD'}${match.opponentName ? ` (${match.opponentName})` : ''}`}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-dark-850">
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-dark-850">
                           <span className="text-slate-400 font-semibold">Result Status</span>
                           <span className="text-slate-500 dark:text-dark-400 font-bold">{match.resultStatus || match.matchStatus}</span>
                         </div>
@@ -116,11 +136,11 @@ const MyGames = () => {
                       <>
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-400 font-semibold">Fixture status</span>
-                          <span className="text-slate-500 dark:text-dark-400 font-bold italic">Not Scheduled</span>
+                          <span className="text-slate-550 dark:text-dark-400 font-bold italic">Not Scheduled</span>
                         </div>
-                        <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-dark-850">
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-dark-850">
                           <span className="text-slate-400 font-semibold">Match Results</span>
-                          <span className="text-slate-500 dark:text-dark-400 font-bold italic">Pending</span>
+                          <span className="text-slate-550 dark:text-dark-400 font-bold italic">Pending</span>
                         </div>
                       </>
                     )}
